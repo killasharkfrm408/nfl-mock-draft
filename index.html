@@ -1,0 +1,2453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>2026 NFL Mock Draft Generator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600;700&display=swap');
+
+/* ─── DESIGN TOKENS ─── */
+:root{
+  --navy:#06090f; --navy-mid:#0b1220; --navy-card:#101828; --navy-border:#1c2d45;
+  --gold:#c8a84b; --gold-light:#e6c96b; --gold-dim:#705e2a; --gold-glow:rgba(200,168,75,0.15);
+  --white:#eef2ff; --muted:#6b7fa0; --green:#22c55e; --red:#ef4444;
+  --blue:#3b82f6; --purple:#8b5cf6; --ticker-bg:#040710;
+  --font-display:'Bebas Neue',sans-serif;
+  --font-cond:'Barlow Condensed',sans-serif;
+  --font-body:'Barlow',sans-serif;
+  --panel-left:256px; --panel-right:296px;
+  --ticker-h:36px; --navbar-h:50px;
+  --timer-h:52px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html{height:100%;}
+body{height:100%;background:var(--navy);color:var(--white);font-family:var(--font-body);font-size:13px;overflow:hidden;}
+/* Mobile: allow natural scroll, don't clip to 100% */
+@media(max-width:768px){body{height:auto;overflow:auto;}}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--navy);}
+::-webkit-scrollbar-thumb{background:var(--navy-border);border-radius:2px;}
+
+/* ══════════════════ NAVBAR ══════════════════ */
+.navbar{
+  height:var(--navbar-h);
+  background:linear-gradient(90deg,#03060d 0%,#0b1220 60%,#03060d 100%);
+  border-bottom:1px solid var(--gold-dim);
+  display:flex;align-items:center;padding:0 12px;gap:8px;
+  position:relative;z-index:50;flex-shrink:0;
+}
+.nav-logo{font-family:var(--font-display);font-size:20px;letter-spacing:2px;color:var(--gold);text-shadow:0 0 20px rgba(200,168,75,.5);white-space:nowrap;flex-shrink:0;}
+.nav-logo em{color:var(--white);font-style:normal;}
+.nav-center{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;}
+.pick-counter{font-family:var(--font-cond);font-size:13px;font-weight:700;color:var(--gold);background:rgba(200,168,75,.08);border:1px solid var(--gold-dim);padding:3px 12px;border-radius:20px;letter-spacing:1px;white-space:nowrap;}
+.nav-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+.mobile-toggle{display:none;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.35);color:#93c5fd;padding:4px 10px;font-size:11px;font-weight:700;border-radius:5px;cursor:pointer;white-space:nowrap;}
+.btn{padding:5px 11px;border-radius:5px;border:none;cursor:pointer;font-family:var(--font-body);font-size:11px;font-weight:700;transition:all .15s;letter-spacing:.3px;white-space:nowrap;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#8a6020);color:#05030a;}
+.btn-gold:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--navy-border);}
+.btn-ghost:hover{color:var(--white);border-color:var(--muted);}
+.btn-danger{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.3);}
+.btn-danger:hover{background:rgba(239,68,68,.22);}
+.btn-undo{background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.3);}
+.btn-trade{background:rgba(139,92,246,.15);color:#c4b5fd;border:1px solid rgba(139,92,246,.35);}
+
+/* ══════════════════ PROGRESS BAR ══════════════════ */
+.progress-bar-wrap{height:2px;background:var(--navy-border);flex-shrink:0;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold));transition:width .4s ease;}
+
+/* ══════════════════ DRAFT TIMER BAR ══════════════════ */
+.timer-bar{
+  height:var(--timer-h);
+  background:linear-gradient(90deg,#04080f,#0a1422,#04080f);
+  border-bottom:1px solid var(--navy-border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;flex-shrink:0;gap:12px;
+  position:relative;z-index:40;
+}
+.timer-left{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.timer-round-label{font-family:var(--font-cond);font-size:9px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;font-weight:700;}
+.timer-clock-wrap{position:relative;flex-shrink:0;}
+
+/* SVG circular countdown */
+.timer-svg{display:block;}
+.timer-svg-bg{fill:none;stroke:var(--navy-border);stroke-width:3;}
+.timer-svg-arc{fill:none;stroke-width:3;stroke-linecap:round;transition:stroke-dashoffset .9s linear,stroke .3s;}
+.timer-numeral{font-family:var(--font-display);font-size:15px;fill:var(--white);text-anchor:middle;dominant-baseline:central;}
+
+.timer-team-wrap{display:flex;align-items:center;gap:10px;flex:1;}
+.timer-helmet-container{width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.timer-team-text{}
+.timer-team-name{font-family:var(--font-display);font-size:16px;letter-spacing:1px;line-height:1.1;}
+.timer-pick-info{font-family:var(--font-cond);font-size:10px;color:var(--gold);font-weight:700;letter-spacing:.5px;}
+
+.timer-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.timer-status-pill{
+  font-family:var(--font-cond);font-size:10px;font-weight:700;letter-spacing:1px;
+  padding:4px 12px;border-radius:20px;transition:all .3s;
+  text-transform:uppercase;
+}
+.timer-status-pill.running{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);color:#4ade80;}
+.timer-status-pill.warning{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fcd34d;}
+.timer-status-pill.critical{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5;animation:urgentPulse 0.7s ease-in-out infinite;}
+.timer-status-pill.expired{background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.6);color:#ff6b6b;}
+.timer-status-pill.paused{background:rgba(107,127,160,.12);border:1px solid rgba(107,127,160,.3);color:var(--muted);}
+@keyframes urgentPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+
+.timer-pause-btn{
+  background:var(--navy-card);border:1px solid var(--navy-border);
+  color:var(--muted);padding:5px 10px;border-radius:5px;
+  font-family:var(--font-cond);font-size:11px;font-weight:700;cursor:pointer;
+  transition:all .15s;letter-spacing:.5px;
+}
+.timer-pause-btn:hover{color:var(--white);border-color:var(--muted);}
+
+/* Animated progress strip under timer bar */
+.timer-strip-wrap{height:3px;background:var(--navy-border);flex-shrink:0;}
+.timer-strip-fill{height:100%;transition:width .9s linear,background-color .3s;}
+
+/* Clock-expired overlay on center board */
+.expired-banner{
+  display:none;
+  position:absolute;top:0;left:0;right:0;z-index:30;
+  background:linear-gradient(90deg,rgba(239,68,68,.85),rgba(180,30,30,.9));
+  color:#fff;text-align:center;padding:6px;
+  font-family:var(--font-cond);font-size:12px;font-weight:700;letter-spacing:1px;
+}
+.expired-banner.show{display:block;}
+
+/* ══════════════════ APP SHELL ══════════════════ */
+/* Height = full viewport minus navbar (50px) minus progress bar (2px)
+   minus timer bar (52px) minus timer strip (3px).
+   The ticker (36px) lives INSIDE app-shell as a flex child and is
+   budgeted via flex-shrink:0 — the app-body takes the remaining space. */
+.app-shell{
+  display:flex;flex-direction:column;
+  height:calc(100vh - var(--navbar-h) - 2px - var(--timer-h) - 3px);
+}
+@supports(height:100dvh){
+  .app-shell{height:calc(100dvh - var(--navbar-h) - 2px - var(--timer-h) - 3px);}
+}
+.app-body{
+  display:grid;grid-template-columns:var(--panel-left) 1fr var(--panel-right);
+  flex:1;overflow:hidden;min-height:0;
+}
+
+/* ══════════════════ LEFT PANEL ══════════════════ */
+.left-panel{background:var(--navy-mid);border-right:1px solid var(--navy-border);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;}
+.oc-header{padding:14px 14px 10px;background:linear-gradient(180deg,rgba(200,168,75,.07) 0%,transparent 100%);border-bottom:1px solid var(--navy-border);flex-shrink:0;}
+.oc-label{font-family:var(--font-cond);font-size:9px;letter-spacing:3px;color:var(--gold-dim);text-transform:uppercase;font-weight:700;margin-bottom:8px;}
+.oc-team-row{display:flex;align-items:center;gap:10px;}
+.helmet-sm{width:44px;height:44px;flex-shrink:0;}
+.oc-name{font-family:var(--font-display);font-size:17px;letter-spacing:1px;line-height:1.1;}
+.oc-sub{font-family:var(--font-cond);font-size:11px;color:var(--gold);font-weight:600;margin-top:2px;}
+.needs-row{padding:8px 14px;border-bottom:1px solid var(--navy-border);flex-shrink:0;}
+.section-label{font-family:var(--font-cond);font-size:9px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;font-weight:700;margin-bottom:6px;}
+.needs-chips{display:flex;flex-wrap:wrap;gap:4px;}
+.need-chip{padding:2px 7px;border-radius:10px;font-family:var(--font-cond);font-size:10px;font-weight:700;letter-spacing:.5px;}
+.nc-1{background:rgba(200,168,75,.2);color:var(--gold-light);border:1px solid var(--gold-dim);}
+.nc-2{background:rgba(255,255,255,.07);color:var(--white);border:1px solid var(--navy-border);}
+.nc-3{background:transparent;color:var(--muted);border:1px solid #14203a;}
+.recs-area{padding:10px 12px;flex:1;overflow-y:auto;}
+.recs-title{font-family:var(--font-cond);font-size:9px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;font-weight:700;margin-bottom:8px;}
+.rec-card{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:7px;padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;}
+.rec-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--navy-border);transition:background .15s;}
+.rec-card.r1::before{background:var(--gold);}
+.rec-card.r2::before{background:rgba(200,168,75,.5);}
+.rec-card.r3::before{background:rgba(200,168,75,.25);}
+.rec-card:hover{border-color:var(--gold-dim);transform:translateX(2px);}
+.rec-num{position:absolute;top:7px;right:8px;font-family:var(--font-display);font-size:22px;color:rgba(200,168,75,.12);line-height:1;}
+.rec-name{font-family:var(--font-cond);font-size:14px;font-weight:700;color:var(--white);}
+.rec-meta{font-size:10px;color:var(--muted);margin-bottom:4px;}
+.rec-why{font-size:10px;color:#4a6080;line-height:1.3;margin-bottom:7px;font-style:italic;}
+.rec-footer{display:flex;align-items:center;justify-content:space-between;}
+.rec-rank-tag{font-family:var(--font-cond);font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(200,168,75,.12);border:1px solid var(--gold-dim);color:var(--gold);letter-spacing:.5px;}
+.btn-select{padding:4px 10px;background:linear-gradient(135deg,var(--gold),#8a6020);color:#05030a;border:none;border-radius:4px;font-family:var(--font-cond);font-size:10px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.5px;}
+.btn-select:hover{filter:brightness(1.2);transform:scale(1.04);}
+
+/* ══════════════════ CENTER PANEL ══════════════════ */
+.center-panel{display:flex;flex-direction:column;overflow:hidden;background:var(--navy);position:relative;}
+.round-tabs{display:flex;border-bottom:1px solid var(--navy-border);background:var(--navy-mid);padding:0 12px;overflow-x:auto;flex-shrink:0;}
+.round-tab{padding:9px 13px;font-family:var(--font-cond);font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;letter-spacing:.5px;}
+.round-tab:hover{color:var(--white);}
+.round-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.picks-container{overflow-y:auto;flex:1;padding:10px;}
+
+/* ─── Pick rows with helmet slot ─── */
+.pick-row{
+  display:grid;
+  grid-template-columns:34px 42px 1fr auto;
+  align-items:center;gap:8px;
+  background:var(--navy-card);border:1px solid var(--navy-border);
+  border-radius:6px;padding:6px 10px;margin-bottom:3px;transition:all .2s;
+}
+.pick-row.on-clock{border-color:var(--green);box-shadow:0 0 0 1px var(--green),0 0 18px rgba(34,197,94,.14);animation:clockPulse 2s ease-in-out infinite;}
+.pick-row.done{background:rgba(10,16,28,.7);}
+.pick-row.comp-pick{border-left:2px solid #6366f1;}
+.pick-row.traded-pick{border-left:2px solid var(--purple);}
+@keyframes clockPulse{0%,100%{box-shadow:0 0 0 1px var(--green),0 0 15px rgba(34,197,94,.12);}50%{box-shadow:0 0 0 1px var(--green),0 0 28px rgba(34,197,94,.28);}}
+.pick-num{font-family:var(--font-display);font-size:14px;color:var(--gold-dim);text-align:center;line-height:1;}
+.helmet-pick-slot{width:38px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.pick-info{}
+.pick-team-name{font-size:9px;color:var(--muted);margin-bottom:1px;}
+.pick-player-name{font-family:var(--font-cond);font-weight:700;font-size:13px;color:var(--white);}
+.pick-player-pos{font-size:9px;color:var(--gold);font-weight:700;}
+.pick-empty{font-size:10px;color:#1e2d45;font-style:italic;}
+.pick-clock{font-family:var(--font-cond);font-size:10px;font-weight:700;color:var(--green);letter-spacing:1px;animation:blink 1.5s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.35};}
+.comp-badge{font-family:var(--font-cond);font-size:8px;padding:1px 5px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);border-radius:6px;color:#a5b4fc;font-weight:700;}
+.traded-badge{font-family:var(--font-cond);font-size:8px;padding:1px 5px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);border-radius:6px;color:#c4b5fd;font-weight:700;}
+
+/* ── Pick-in animation ── */
+@keyframes pickFlash{
+  0%{background:rgba(200,168,75,.25);}
+  40%{background:rgba(200,168,75,.08);}
+  100%{background:rgba(10,16,28,.7);}
+}
+.pick-row.pick-in-anim{animation:pickFlash 1.4s ease-out forwards;}
+
+/* ══════════════════ RIGHT PANEL ══════════════════ */
+.right-panel{background:var(--navy-mid);border-left:1px solid var(--navy-border);display:flex;flex-direction:column;overflow:hidden;}
+.pool-header{padding:10px 12px 8px;border-bottom:1px solid var(--navy-border);flex-shrink:0;}
+.pool-title{font-family:var(--font-display);font-size:14px;letter-spacing:2px;color:var(--gold);margin-bottom:7px;}
+.filter-row{display:flex;gap:5px;}
+.filter-sel{flex:1;background:var(--navy);border:1px solid var(--navy-border);color:var(--white);padding:4px 6px;border-radius:4px;font-family:var(--font-body);font-size:11px;cursor:pointer;}
+.filter-sel:focus{outline:none;border-color:var(--gold-dim);}
+.pool-wrap{overflow-y:auto;flex:1;}
+.pool-table{width:100%;border-collapse:collapse;}
+.pool-table thead{position:sticky;top:0;background:var(--navy-mid);z-index:4;}
+.pool-table th{padding:5px 8px;font-family:var(--font-cond);font-size:9px;letter-spacing:1.5px;color:var(--gold-dim);text-transform:uppercase;border-bottom:1px solid var(--navy-border);text-align:left;font-weight:700;}
+.pool-table td{padding:6px 8px;border-bottom:1px solid rgba(28,45,69,.4);vertical-align:middle;}
+.pool-table tr.avail{cursor:pointer;}
+.pool-table tr.avail:hover{background:rgba(200,168,75,.05);}
+.pool-table tr.drafted{opacity:.32;pointer-events:none;}
+.pool-table tr.drafted .pname{text-decoration:line-through;}
+.rank-num{font-family:var(--font-display);font-size:13px;color:var(--gold-dim);}
+.pname{font-family:var(--font-cond);font-size:12px;font-weight:700;color:var(--white);}
+.pschool{font-size:9px;color:var(--muted);}
+.drafted-by{font-size:8px;color:var(--muted);font-style:italic;}
+.pos-badge{padding:2px 5px;border-radius:3px;font-family:var(--font-cond);font-size:9px;font-weight:700;letter-spacing:.5px;display:inline-block;}
+.pos-QB{background:rgba(200,168,75,.18);color:var(--gold);}
+.pos-RB{background:rgba(34,197,94,.12);color:#86efac;}
+.pos-WR{background:rgba(59,130,246,.12);color:#93c5fd;}
+.pos-TE{background:rgba(168,85,247,.12);color:#d8b4fe;}
+.pos-OT,.pos-IOL,.pos-G,.pos-C{background:rgba(245,158,11,.12);color:#fcd34d;}
+.pos-EDGE,.pos-DE{background:rgba(239,68,68,.12);color:#fca5a5;}
+.pos-DT{background:rgba(239,68,68,.08);color:#fca5a5;}
+.pos-LB{background:rgba(20,184,166,.12);color:#5eead4;}
+.pos-CB{background:rgba(99,102,241,.12);color:#a5b4fc;}
+.pos-S{background:rgba(99,102,241,.08);color:#a5b4fc;}
+.pos-P,.pos-K,.pos-LS{background:rgba(100,100,100,.12);color:#9ca3af;}
+
+/* ══════════════════ NEWS TICKER ══════════════════ */
+.ticker-wrap{height:var(--ticker-h);background:var(--ticker-bg);border-top:1px solid var(--gold-dim);display:flex;align-items:center;overflow:hidden;flex-shrink:0;position:relative;z-index:20;}
+.ticker-label{flex-shrink:0;padding:0 12px;font-family:var(--font-cond);font-size:11px;font-weight:700;letter-spacing:2px;display:flex;align-items:center;gap:6px;border-right:1px solid var(--gold-dim);height:100%;white-space:nowrap;}
+.ticker-nfl{color:var(--gold);}
+.ticker-sw{color:#4ade80;}
+.ticker-scroller-wrap{flex:1;overflow:hidden;position:relative;}
+.ticker-scroller-wrap::before,.ticker-scroller-wrap::after{content:'';position:absolute;top:0;width:40px;height:100%;z-index:2;pointer-events:none;}
+.ticker-scroller-wrap::before{left:0;background:linear-gradient(90deg,var(--ticker-bg),transparent);}
+.ticker-scroller-wrap::after{right:0;background:linear-gradient(-90deg,var(--ticker-bg),transparent);}
+.ticker-track{display:flex;align-items:center;white-space:nowrap;animation:tickerScroll 80s linear infinite;will-change:transform;}
+.ticker-track:hover{animation-play-state:paused;}
+@keyframes tickerScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+.ticker-item{display:inline-flex;align-items:center;gap:6px;padding:0 22px;font-size:11px;font-weight:500;}
+.ticker-item.nfl-item{color:#ccd5e8;}
+.ticker-item.sw-item{color:#86efac;font-style:italic;}
+.ticker-dot{color:var(--gold);font-size:8px;flex-shrink:0;}
+.ticker-source{font-size:9px;color:var(--muted);margin-left:4px;}
+
+/* ══════════════════ MODALS ══════════════════ */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(5px);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.active{opacity:1;pointer-events:all;}
+.modal-box{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:10px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.8);transform:translateY(8px);transition:transform .2s;}
+.modal-overlay.active .modal-box{transform:translateY(0);}
+.modal-head{padding:18px 18px 14px;border-bottom:1px solid var(--navy-border);display:flex;justify-content:space-between;align-items:flex-start;}
+.modal-pname{font-family:var(--font-display);font-size:22px;letter-spacing:1px;line-height:1.1;}
+.modal-pmeta{font-family:var(--font-cond);font-size:12px;color:var(--muted);margin-top:3px;}
+.modal-close{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 3px;line-height:1;margin-left:10px;flex-shrink:0;}
+.modal-close:hover{color:var(--white);}
+.modal-body{padding:14px 18px;}
+.modal-stats-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.mstat{background:var(--navy-mid);border:1px solid var(--navy-border);border-radius:5px;padding:5px 9px;}
+.mstat-label{font-family:var(--font-cond);font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;}
+.mstat-val{font-family:var(--font-cond);font-size:13px;font-weight:700;color:var(--white);}
+.modal-sec{margin-bottom:12px;}
+.modal-sec-title{font-family:var(--font-cond);font-size:9px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;font-weight:700;margin-bottom:5px;}
+.modal-list{list-style:none;}
+.modal-list li{padding:2px 0;font-size:12px;display:flex;align-items:flex-start;gap:5px;}
+.modal-list li::before{content:'▸';color:var(--gold-dim);flex-shrink:0;margin-top:1px;font-size:10px;}
+.modal-bio{font-size:12px;color:#9aabbf;line-height:1.6;}
+.modal-source{font-size:9px;color:#2a3d55;margin-top:8px;font-style:italic;}
+.modal-actions{padding:12px 18px 14px;border-top:1px solid var(--navy-border);display:flex;gap:8px;justify-content:flex-end;}
+
+/* Trade modal */
+.trade-modal-box{background:var(--navy-card);border:1px solid rgba(139,92,246,.4);border-radius:10px;max-width:540px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.8),0 0 40px rgba(139,92,246,.08);transform:translateY(8px);transition:transform .2s;}
+.modal-overlay.active .trade-modal-box{transform:translateY(0);}
+.trade-header{padding:16px 18px 12px;border-bottom:1px solid rgba(139,92,246,.25);background:linear-gradient(135deg,rgba(139,92,246,.08) 0%,transparent 100%);}
+.trade-title{font-family:var(--font-display);font-size:20px;letter-spacing:2px;color:#c4b5fd;}
+.trade-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.trade-body{padding:14px 18px;}
+.trade-section{margin-bottom:14px;}
+.trade-sec-label{font-family:var(--font-cond);font-size:9px;letter-spacing:2px;color:rgba(139,92,246,.8);text-transform:uppercase;font-weight:700;margin-bottom:7px;}
+.trade-team-sel{width:100%;background:var(--navy);border:1px solid var(--navy-border);color:var(--white);padding:8px 10px;border-radius:6px;font-family:var(--font-cond);font-size:13px;cursor:pointer;}
+.trade-team-sel:focus{outline:none;border-color:rgba(139,92,246,.5);}
+.trade-picks-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.pick-chip{padding:5px 10px;border-radius:6px;font-family:var(--font-cond);font-size:11px;font-weight:700;letter-spacing:.5px;border:1px solid var(--navy-border);background:var(--navy);color:var(--muted);cursor:pointer;transition:all .15s;}
+.pick-chip.selected{background:rgba(139,92,246,.15);border-color:rgba(139,92,246,.5);color:#c4b5fd;}
+.pick-chip:hover{border-color:rgba(139,92,246,.4);color:var(--white);}
+.trade-value-bar{background:var(--navy);border:1px solid var(--navy-border);border-radius:8px;padding:12px 14px;margin-top:8px;}
+.trade-val-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.trade-val-label{font-family:var(--font-cond);font-size:11px;color:var(--muted);font-weight:700;}
+.trade-val-num{font-family:var(--font-display);font-size:18px;color:var(--white);}
+.trade-balance{text-align:center;padding:8px 0 4px;font-family:var(--font-cond);font-size:12px;font-weight:700;letter-spacing:1px;}
+.trade-balance.fair{color:var(--green);}
+.trade-balance.unfair{color:var(--red);}
+.trade-balance.slight{color:var(--gold);}
+.trade-verdict{background:var(--navy);border-radius:6px;padding:8px 10px;font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px;text-align:center;}
+.trade-actions{padding:12px 18px 14px;border-top:1px solid var(--navy-border);display:flex;gap:8px;justify-content:flex-end;}
+.btn-accept{background:linear-gradient(135deg,rgba(34,197,94,.25),rgba(34,197,94,.12));color:#4ade80;border:1px solid rgba(34,197,94,.4);padding:7px 18px;border-radius:6px;font-family:var(--font-cond);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .15s;}
+.btn-accept:hover{background:rgba(34,197,94,.3);}
+.btn-accept:disabled{opacity:.35;cursor:not-allowed;}
+.formula-tip{font-size:10px;color:var(--muted);line-height:1.5;margin-top:6px;padding:6px 8px;background:var(--navy);border-radius:4px;border-left:2px solid var(--gold-dim);}
+
+/* Confirm / Save modal */
+.confirm-box{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:9px;max-width:310px;width:100%;padding:22px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.8);transform:translateY(8px);transition:transform .2s;}
+.modal-overlay.active .confirm-box{transform:translateY(0);}
+.confirm-title{font-family:var(--font-display);font-size:17px;letter-spacing:1px;color:var(--white);margin-bottom:6px;}
+.confirm-desc{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;}
+.confirm-actions{display:flex;gap:8px;justify-content:center;}
+.save-input{width:100%;background:var(--navy);border:1px solid var(--navy-border);color:var(--white);padding:8px 10px;border-radius:5px;font-family:var(--font-body);font-size:13px;margin-bottom:10px;}
+.save-input:focus{outline:none;border-color:var(--gold-dim);}
+.saved-list{max-height:180px;overflow-y:auto;margin:8px 0;}
+.saved-item{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;border:1px solid var(--navy-border);border-radius:5px;margin-bottom:5px;cursor:pointer;transition:all .15s;}
+.saved-item:hover{border-color:var(--gold-dim);background:var(--gold-glow);}
+.saved-name{font-family:var(--font-cond);font-size:12px;font-weight:700;}
+.saved-meta{font-size:9px;color:var(--muted);}
+
+/* Toast */
+.toast{position:fixed;bottom:44px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--navy-card);border:1px solid var(--gold-dim);border-radius:7px;padding:9px 18px;font-family:var(--font-cond);font-size:13px;font-weight:700;color:var(--gold-light);z-index:400;transition:transform .25s;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* Mobile sheet */
+.mobile-sheet{display:none;position:fixed;inset:0;z-index:150;background:var(--navy-mid);flex-direction:column;overflow:hidden;}
+.mobile-sheet.open{display:flex;}
+.ms-header{padding:12px 14px;border-bottom:1px solid var(--navy-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.ms-title{font-family:var(--font-display);font-size:16px;letter-spacing:1px;color:var(--gold);}
+.ms-close{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;}
+.ms-body{flex:1;overflow-y:auto;padding:12px;}
+.mobile-tabs{display:flex;border-bottom:1px solid var(--navy-border);padding:0 14px;flex-shrink:0;}
+.mobile-tab{padding:8px 14px;font-family:var(--font-cond);font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px;}
+.mobile-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* Clock-expire alert overlay */
+.clock-expire-overlay{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:500;background:rgba(239,68,68,.92);border:2px solid #ff6b6b;border-radius:12px;padding:20px 28px;text-align:center;box-shadow:0 0 60px rgba(239,68,68,.5);}
+.clock-expire-overlay.show{display:block;animation:expireShake .4s ease-out;}
+@keyframes expireShake{0%,100%{transform:translate(-50%,-50%);}25%{transform:translate(-49%,-50%);}75%{transform:translate(-51%,-50%);}}
+.expire-title{font-family:var(--font-display);font-size:24px;letter-spacing:2px;color:#fff;margin-bottom:4px;}
+.expire-body{font-size:12px;color:rgba(255,255,255,.85);line-height:1.5;margin-bottom:14px;}
+.expire-action-row{display:flex;gap:8px;justify-content:center;}
+.btn-expire-pick{background:#fff;color:#b91c1c;border:none;padding:7px 16px;border-radius:6px;font-family:var(--font-cond);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;}
+.btn-expire-next{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);padding:7px 16px;border-radius:6px;font-family:var(--font-cond);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;}
+
+@media(max-width:768px){
+  /* ── Kill desktop layout on mobile ── */
+  :root{--panel-left:0px;--panel-right:0px;}
+  .app-shell{display:none !important;}          /* hide desktop 3-panel shell entirely */
+  .timer-bar{display:none !important;}          /* hide desktop timer bar */
+  .timer-strip-wrap{display:none !important;}
+  .progress-bar-wrap{display:none !important;}
+
+  /* ── Navbar: compact, icon-only action buttons ── */
+  .nav-logo{font-size:15px;letter-spacing:1px;}
+  .nav-center{display:none;}                    /* hide pick counter from nav — shown in mobile UI */
+  .btn span{display:none;}
+  .btn-trade,.btn-undo,.btn-ghost,.btn-danger{padding:5px 8px;font-size:12px;}
+  .mobile-toggle{display:none !important;}      /* no longer needed — mobile UI is always visible */
+
+  /* ── Mobile UI: always-visible full-page layout ── */
+  .mobile-ui{
+    display:flex !important;
+    flex-direction:column;
+    min-height:calc(100dvh - 50px);            /* 50px = navbar height */
+    background:var(--navy);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  /* Timer strip at top of mobile UI */
+  .mobile-timer{
+    background:linear-gradient(90deg,#04080f,#0a1422,#04080f);
+    border-bottom:1px solid var(--navy-border);
+    padding:10px 14px;
+    display:flex;align-items:center;gap:10px;
+    flex-shrink:0;
+  }
+  .mobile-timer-svg{flex-shrink:0;}
+  .mobile-timer-text{flex:1;}
+  .mobile-timer-label{font-family:var(--font-cond);font-size:8px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;font-weight:700;}
+  .mobile-timer-team{font-family:var(--font-display);font-size:16px;letter-spacing:1px;line-height:1.1;}
+  .mobile-timer-pick{font-family:var(--font-cond);font-size:10px;color:var(--gold);font-weight:700;}
+  .mobile-timer-right{flex-shrink:0;text-align:right;}
+  .mobile-timer-pill{font-family:var(--font-cond);font-size:9px;font-weight:700;letter-spacing:.8px;padding:3px 8px;border-radius:12px;}
+  .mobile-timer-pill.running{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);color:#4ade80;}
+  .mobile-timer-pill.warning{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fcd34d;}
+  .mobile-timer-pill.critical{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5;animation:urgentPulse .7s ease-in-out infinite;}
+  .mobile-timer-pill.expired{background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.6);color:#ff6b6b;}
+  @keyframes urgentPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+  .mobile-timer-pause{background:transparent;border:1px solid var(--navy-border);color:var(--muted);padding:3px 8px;border-radius:4px;font-family:var(--font-cond);font-size:9px;font-weight:700;cursor:pointer;margin-top:4px;}
+
+  /* Mobile progress bar */
+  .mobile-progress-wrap{height:3px;background:var(--navy-border);flex-shrink:0;}
+  .mobile-progress-fill{height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold));transition:width .4s;}
+
+  /* Tab bar */
+  .mobile-tab-bar{
+    display:flex;
+    border-bottom:1px solid var(--navy-border);
+    background:var(--navy-mid);
+    flex-shrink:0;
+    position:sticky;top:0;z-index:30;
+  }
+  .mob-tab{
+    flex:1;padding:11px 0;text-align:center;
+    font-family:var(--font-cond);font-size:11px;font-weight:700;
+    color:var(--muted);cursor:pointer;
+    border-bottom:2px solid transparent;
+    letter-spacing:.5px;transition:all .15s;
+  }
+  .mob-tab.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(200,168,75,.04);}
+
+  /* Mobile pick counter banner */
+  .mobile-pick-banner{
+    background:rgba(200,168,75,.06);
+    border-bottom:1px solid rgba(200,168,75,.15);
+    padding:6px 14px;
+    font-family:var(--font-cond);font-size:10px;font-weight:700;
+    color:var(--gold);letter-spacing:.5px;text-align:center;flex-shrink:0;
+  }
+
+  /* Tab content */
+  .mob-content{padding:12px 14px;flex:1;}
+
+  /* On the clock card — mobile */
+  .mob-clock-card{
+    background:linear-gradient(135deg,rgba(200,168,75,.07),transparent);
+    border:1px solid rgba(200,168,75,.2);
+    border-radius:10px;padding:14px;margin-bottom:12px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .mob-clock-name{font-family:var(--font-display);font-size:20px;letter-spacing:1px;}
+  .mob-clock-sub{font-family:var(--font-cond);font-size:11px;color:var(--gold);font-weight:700;margin-top:2px;}
+
+  /* Rec cards on mobile — larger tap targets */
+  .mob-rec-card{
+    background:var(--navy-card);border:1px solid var(--navy-border);
+    border-radius:8px;padding:12px 14px;margin-bottom:10px;
+    position:relative;overflow:hidden;
+  }
+  .mob-rec-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:var(--navy-border);}
+  .mob-rec-card.r1::before{background:var(--gold);}
+  .mob-rec-card.r2::before{background:rgba(200,168,75,.5);}
+  .mob-rec-card.r3::before{background:rgba(200,168,75,.25);}
+  .mob-rec-num{font-family:var(--font-display);font-size:28px;color:rgba(200,168,75,.1);position:absolute;top:6px;right:10px;line-height:1;}
+  .mob-rec-name{font-family:var(--font-cond);font-size:16px;font-weight:700;color:var(--white);margin-bottom:2px;}
+  .mob-rec-meta{font-size:11px;color:var(--muted);margin-bottom:6px;}
+  .mob-rec-why{font-size:11px;color:#4a6080;line-height:1.4;margin-bottom:10px;font-style:italic;}
+  .mob-rec-footer{display:flex;align-items:center;justify-content:space-between;}
+  .mob-rec-rank{font-family:var(--font-cond);font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;background:rgba(200,168,75,.12);border:1px solid var(--gold-dim);color:var(--gold);}
+  .mob-select-btn{
+    padding:8px 18px;background:linear-gradient(135deg,var(--gold),#8a6020);
+    color:#05030a;border:none;border-radius:6px;
+    font-family:var(--font-cond);font-size:12px;font-weight:700;
+    cursor:pointer;letter-spacing:.5px;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+
+  /* Mobile board pick rows */
+  .mob-pick-row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--navy-card);border:1px solid var(--navy-border);
+    border-radius:7px;padding:9px 12px;margin-bottom:4px;
+  }
+  .mob-pick-row.on-clock{border-color:var(--green);box-shadow:0 0 12px rgba(34,197,94,.2);}
+  .mob-pick-row.done{opacity:.75;}
+  .mob-pick-num{font-family:var(--font-display);font-size:16px;color:var(--gold-dim);min-width:28px;text-align:center;}
+  .mob-pick-info{flex:1;}
+  .mob-pick-team{font-size:10px;color:var(--muted);margin-bottom:1px;}
+  .mob-pick-player{font-family:var(--font-cond);font-size:14px;font-weight:700;color:var(--white);}
+  .mob-pick-pos{font-size:10px;color:var(--gold);font-weight:700;}
+  .mob-pick-empty{font-size:11px;color:#1e2d45;font-style:italic;}
+  .mob-pick-clock{font-family:var(--font-cond);font-size:11px;font-weight:700;color:var(--green);letter-spacing:1px;animation:blink 1.5s ease-in-out infinite;}
+
+  /* Mobile round tabs (scrollable) */
+  .mob-round-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:8px;-webkit-overflow-scrolling:touch;}
+  .mob-round-tab{flex-shrink:0;padding:6px 14px;background:var(--navy-card);border:1px solid var(--navy-border);border-radius:20px;font-family:var(--font-cond);font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;}
+  .mob-round-tab.active{background:rgba(200,168,75,.12);border-color:var(--gold-dim);color:var(--gold);}
+
+  /* Mobile pool rows */
+  .mob-pool-row{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 0;border-bottom:1px solid rgba(28,45,69,.5);cursor:pointer;
+  }
+  .mob-pool-rank{font-family:var(--font-display);font-size:16px;color:var(--gold-dim);min-width:28px;}
+  .mob-pool-info{flex:1;}
+  .mob-pool-name{font-family:var(--font-cond);font-size:13px;font-weight:700;color:var(--white);}
+  .mob-pool-school{font-size:10px;color:var(--muted);}
+  .mob-pool-drafted{font-size:9px;color:var(--muted);font-style:italic;}
+
+  /* Ticker hidden on mobile to save space */
+  .ticker-wrap{display:none !important;}
+
+  /* Mobile needs chips */
+  .mob-needs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+}
+
+/* ── Mobile UI div: always hidden on desktop ── */
+.mobile-ui{display:none;}
+</style>
+</head>
+<body>
+
+<!-- ══ NAVBAR ══ -->
+<nav class="navbar">
+  <div class="nav-logo">2026 NFL <em>MOCK DRAFT</em></div>
+  <div class="nav-center">
+    <span class="pick-counter" id="pickCounter">Pick 1 of 257</span>
+  </div>
+  <div class="nav-actions">
+    <button class="btn btn-trade" onclick="openTradeModal()">⇄ Trade</button>
+    <button class="btn btn-undo" onclick="undoPick()">⟵</button>
+    <button class="btn btn-ghost" onclick="openSaveModal()">💾</button>
+    <button class="btn btn-ghost" onclick="openLoadModal()">📂</button>
+    <button class="btn btn-gold" onclick="shareDraft()">🔗 Share</button>
+    <button class="btn btn-ghost" onclick="openEnterCodeModal()">🔑 Code</button>
+    <button class="btn btn-danger" onclick="confirmReset()">↺</button>
+    <button class="mobile-toggle" onclick="openMobileSheet()">📋 Picks</button>
+  </div>
+</nav>
+<div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+
+<!-- ══ DRAFT TIMER BAR ══ -->
+<div class="timer-bar" id="timerBar">
+  <div class="timer-left">
+    <div>
+      <div class="timer-round-label" id="timerRoundLabel">ROUND 1 — 8:00</div>
+    </div>
+    <!-- SVG circular clock -->
+    <div class="timer-clock-wrap">
+      <svg class="timer-svg" width="46" height="46" viewBox="0 0 46 46">
+        <circle class="timer-svg-bg" cx="23" cy="23" r="20"/>
+        <circle class="timer-svg-arc" id="timerArc" cx="23" cy="23" r="20"
+          stroke="#22c55e"
+          stroke-dasharray="125.66"
+          stroke-dashoffset="0"
+          transform="rotate(-90 23 23)"/>
+        <text class="timer-numeral" id="timerNumeral" x="23" y="23">8:00</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="timer-team-wrap">
+    <div class="timer-helmet-container" id="timerHelmetSlot"></div>
+    <div class="timer-team-text">
+      <div class="timer-team-name" id="timerTeamName">—</div>
+      <div class="timer-pick-info" id="timerPickInfo">Pick #— · Round —</div>
+    </div>
+  </div>
+
+  <div class="timer-right">
+    <div class="timer-status-pill running" id="timerStatusPill">● ON THE CLOCK</div>
+    <button class="timer-pause-btn" id="timerPauseBtn" onclick="toggleTimerPause()">⏸ Pause</button>
+  </div>
+</div>
+<div class="timer-strip-wrap"><div class="timer-strip-fill" id="timerStrip" style="width:100%;background:var(--green);"></div></div>
+
+<!-- ══ APP SHELL ══ -->
+<div class="app-shell">
+  <div class="app-body">
+
+    <!-- LEFT PANEL -->
+    <div class="left-panel" id="leftPanel">
+      <div class="oc-header">
+        <div class="oc-label">On the Clock</div>
+        <div class="oc-team-row">
+          <div class="helmet-sm" id="ocHelmetSlot"></div>
+          <div>
+            <div class="oc-name" id="clockName">—</div>
+            <div class="oc-sub" id="clockSub">Pick #— · Round —</div>
+          </div>
+        </div>
+      </div>
+      <div class="needs-row">
+        <div class="section-label">Top Needs</div>
+        <div class="needs-chips" id="needsChips"></div>
+      </div>
+      <div class="recs-area">
+        <div class="recs-title">Top 5 Recommendations</div>
+        <div id="recCards"></div>
+      </div>
+    </div>
+
+    <!-- CENTER PANEL -->
+    <div class="center-panel">
+      <div class="expired-banner" id="expiredBanner">⚠ CLOCK EXPIRED — Next team may now select. Previous team can still pick but loses priority.</div>
+      <div class="round-tabs" id="roundTabs"></div>
+      <div class="picks-container" id="picksContainer"></div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+      <div class="pool-header">
+        <div class="pool-title">BIG BOARD</div>
+        <div class="filter-row">
+          <select class="filter-sel" id="filterPos" onchange="renderPool()">
+            <option value="">All Pos</option>
+            <option>QB</option><option>RB</option><option>WR</option><option>TE</option>
+            <option>OT</option><option>IOL</option><option>EDGE</option><option>DT</option>
+            <option>LB</option><option>CB</option><option>S</option>
+          </select>
+          <select class="filter-sel" id="filterAvail" onchange="renderPool()">
+            <option value="">All</option>
+            <option value="avail">Available</option>
+            <option value="drafted">Drafted</option>
+          </select>
+        </div>
+      </div>
+      <div class="pool-wrap">
+        <table class="pool-table">
+          <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Proj</th></tr></thead>
+          <tbody id="poolBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap" id="tickerWrap">
+    <div class="ticker-label">
+      <span style="font-size:13px;">🏈</span><span class="ticker-nfl">NFL DRAFT</span>
+      <span style="color:var(--navy-border)">|</span>
+      <span style="font-size:13px;">⚔️</span><span class="ticker-sw">FORCE</span>
+    </div>
+    <div class="ticker-scroller-wrap"><div class="ticker-track" id="tickerTrack"></div></div>
+  </div>
+</div>
+
+<!-- ══ MOBILE UI — always visible on mobile, hidden on desktop ══ -->
+<div class="mobile-ui" id="mobileUI">
+
+  <!-- Mobile timer strip -->
+  <div class="mobile-timer" id="mobTimerBar">
+    <svg class="mobile-timer-svg" width="44" height="44" viewBox="0 0 46 46">
+      <circle fill="none" stroke="var(--navy-border)" stroke-width="3" cx="23" cy="23" r="20"/>
+      <circle id="mobTimerArc" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round"
+        stroke-dasharray="125.66" stroke-dashoffset="0" cx="23" cy="23" r="20" transform="rotate(-90 23 23)"/>
+      <text id="mobTimerNum" x="23" y="23" text-anchor="middle" dominant-baseline="central"
+        font-family="'Bebas Neue',sans-serif" font-size="12" fill="white">8:00</text>
+    </svg>
+    <div class="mobile-timer-text">
+      <div class="mobile-timer-label">ON THE CLOCK</div>
+      <div class="mobile-timer-team" id="mobTimerTeam">Las Vegas Raiders</div>
+      <div class="mobile-timer-pick" id="mobTimerPick">Pick #1 · Round 1 · 8:00 max</div>
+    </div>
+    <div class="mobile-timer-right">
+      <div class="mobile-timer-pill running" id="mobTimerPill">● LIVE</div>
+      <br>
+      <button class="mobile-timer-pause" id="mobPauseBtn" onclick="toggleTimerPause()">⏸ Pause</button>
+    </div>
+  </div>
+
+  <!-- Mobile progress + pick counter -->
+  <div class="mobile-progress-wrap"><div class="mobile-progress-fill" id="mobProgressBar" style="width:0%"></div></div>
+  <div class="mobile-pick-banner" id="mobPickCounter">Pick 1 of 257</div>
+
+  <!-- Tab bar -->
+  <div class="mobile-tab-bar">
+    <div class="mob-tab active" id="mobTab0" onclick="switchMobTab(0)">🏈 On Clock</div>
+    <div class="mob-tab" id="mobTab1" onclick="switchMobTab(1)">📋 Board</div>
+    <div class="mob-tab" id="mobTab2" onclick="switchMobTab(2)">📊 Big Board</div>
+  </div>
+
+  <!-- Tab 0: On the Clock + Recommendations -->
+  <div class="mob-content" id="mobPane0">
+
+    <!-- Clock card -->
+    <div class="mob-clock-card">
+      <div id="mobClockHelmet"></div>
+      <div>
+        <div class="mob-clock-name" id="mobClockName">Las Vegas Raiders</div>
+        <div class="mob-clock-sub" id="mobClockSub">Pick #1 · Round 1</div>
+      </div>
+    </div>
+
+    <!-- Needs -->
+    <div style="font-family:var(--font-cond);font-size:9px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;font-weight:700;margin-bottom:6px;">Top Needs</div>
+    <div class="mob-needs" id="mobNeeds"></div>
+
+    <!-- Recommendations -->
+    <div style="font-family:var(--font-cond);font-size:9px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;font-weight:700;margin-bottom:10px;">Top 5 Recommendations</div>
+    <div id="mobRecCards"></div>
+  </div>
+
+  <!-- Tab 1: Draft Board -->
+  <div class="mob-content" id="mobPane1" style="display:none;">
+    <div class="mob-round-tabs" id="mobRoundTabs"></div>
+    <div id="mobBoardRows"></div>
+  </div>
+
+  <!-- Tab 2: Big Board / Prospect Pool -->
+  <div class="mob-content" id="mobPane2" style="display:none;">
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <select class="filter-sel" id="mobFilterPos" onchange="renderMobile()" style="flex:1;padding:8px;font-size:12px;">
+        <option value="">All Positions</option>
+        <option>QB</option><option>RB</option><option>WR</option><option>TE</option>
+        <option>OT</option><option>IOL</option><option>EDGE</option><option>DT</option>
+        <option>LB</option><option>CB</option><option>S</option>
+      </select>
+      <select class="filter-sel" id="mobFilterAvail" onchange="renderMobile()" style="flex:1;padding:8px;font-size:12px;">
+        <option value="">All</option>
+        <option value="avail">Available</option>
+        <option value="drafted">Drafted</option>
+      </select>
+    </div>
+    <div id="mobPoolRows"></div>
+  </div>
+
+</div>
+<!-- ══ END MOBILE UI ══ -->
+
+<!-- ══ CLOCK EXPIRED OVERLAY ══ -->
+<div class="clock-expire-overlay" id="clockExpireOverlay">
+  <div class="expire-title">⏱ CLOCK EXPIRED</div>
+  <div class="expire-body" id="expireBody">Time has run out.<br>The next team is now free to make their selection.<br><strong style="color:#fff;" id="expireTeamLine"></strong></div>
+  <div class="expire-action-row">
+    <button class="btn-expire-pick" onclick="dismissExpireAndPick()">Make Pick Anyway</button>
+    <button class="btn-expire-next" onclick="triggerNextTeamSkip()">Next Team Selects First</button>
+  </div>
+</div>
+
+<!-- mobile sheet replaced by always-visible .mobile-ui above -->
+
+<!-- ══ BIO MODAL ══ -->
+<div class="modal-overlay" id="bioModal" onclick="closeBioModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div><div class="modal-pname" id="modalName">—</div><div class="modal-pmeta" id="modalMeta">—</div></div>
+      <button class="modal-close" onclick="closeBioModalDirect()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-stats-row" id="modalStats"></div>
+      <div class="modal-sec"><div class="modal-sec-title">Strengths</div><ul class="modal-list" id="modalStr"></ul></div>
+      <div class="modal-sec"><div class="modal-sec-title">Weaknesses</div><ul class="modal-list" id="modalWk"></ul></div>
+      <div class="modal-sec"><div class="modal-sec-title">Bio</div><div class="modal-bio" id="modalBio"></div><div class="modal-source" id="modalSrc"></div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeBioModalDirect()">Close</button>
+      <button class="btn btn-gold" id="modalSelBtn" onclick="selectFromModal()">Select</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TRADE MODAL ══ -->
+<div class="modal-overlay" id="tradeModal" onclick="closeTradeModal(event)">
+  <div class="trade-modal-box" onclick="event.stopPropagation()">
+    <div class="trade-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div class="trade-title">⇄ TRADE SIMULATOR</div><div class="trade-sub">Johnson/Hill Draft Value Chart</div></div>
+        <button class="modal-close" onclick="closeTradeModalDirect()">✕</button>
+      </div>
+    </div>
+    <div class="trade-body">
+      <div class="trade-section">
+        <div class="trade-sec-label">Team A — Gives Up</div>
+        <select class="trade-team-sel" id="tradeTeamA" onchange="updateTradePicks()"><option value="">Select Team A...</option></select>
+        <div class="trade-picks-grid" id="tradePicksA" style="margin-top:8px;"></div>
+      </div>
+      <div class="trade-section">
+        <div class="trade-sec-label">Team B — Gives Up</div>
+        <select class="trade-team-sel" id="tradeTeamB" onchange="updateTradePicks()"><option value="">Select Team B...</option></select>
+        <div class="trade-picks-grid" id="tradePicksB" style="margin-top:8px;"></div>
+      </div>
+      <div class="trade-value-bar" id="tradeValueBar">
+        <div class="trade-val-row">
+          <div><div class="trade-val-label" id="tradeALabel">Team A</div><div class="trade-val-num" id="tradeAVal">0</div></div>
+          <div style="text-align:center"><div class="trade-val-label">Diff</div><div class="trade-val-num" id="tradeDiff">0</div></div>
+          <div style="text-align:right"><div class="trade-val-label" id="tradeBLabel">Team B</div><div class="trade-val-num" id="tradeBVal">0</div></div>
+        </div>
+        <div class="trade-balance" id="tradeBalance">Select teams and picks</div>
+        <div class="trade-verdict" id="tradeVerdict">Johnson/Hill chart assigns pts per pick. Fair = within 10% of equal value.</div>
+        <div class="formula-tip">📐 Fair: |A−B|/max(A,B) ≤ 10% · Slight: ≤25% · Unfair: &gt;25%</div>
+      </div>
+    </div>
+    <div class="trade-actions">
+      <button class="btn btn-ghost" onclick="closeTradeModalDirect()">Cancel</button>
+      <button class="btn-accept" id="acceptTradeBtn" onclick="executeTrade()" disabled>✓ Accept Trade</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONFIRM MODAL ══ -->
+<div class="modal-overlay" id="confirmModal" onclick="closeConfirmModal(event)">
+  <div class="confirm-box" onclick="event.stopPropagation()" id="confirmBox"></div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════
+     DATA + LOGIC
+══════════════════════════════════════ -->
+<script>
+/* ═══════════════════════════════
+   HELMET SVG FACTORY
+   Original fan-art SVG helmets in team colors.
+   NOT reproductions of official NFL/Riddell helmet designs.
+   Each is a generic football helmet silhouette with team
+   abbreviation and official team colors only.
+   ═══════════════════════════════ */
+const TEAM_COLORS={
+  LV:{primary:"#A5ACAF",secondary:"#000000",text:"#000"},
+  NYJ:{primary:"#125740",secondary:"#FFFFFF",text:"#fff"},
+  ARI:{primary:"#97233F",secondary:"#FFB612",text:"#fff"},
+  TEN:{primary:"#0C2340",secondary:"#4B92DB",text:"#4B92DB"},
+  NYG:{primary:"#0B2265",secondary:"#A71930",text:"#fff"},
+  CLE:{primary:"#311D00",secondary:"#FF3C00",text:"#FF3C00"},
+  WAS:{primary:"#5A1414",secondary:"#FFB612",text:"#FFB612"},
+  NO:{primary:"#101820",secondary:"#D3BC8D",text:"#D3BC8D"},
+  KC:{primary:"#E31837",secondary:"#FFB81C",text:"#FFB81C"},
+  CIN:{primary:"#FB4F14",secondary:"#000000",text:"#000"},
+  MIA:{primary:"#008E97",secondary:"#FC4C02",text:"#FC4C02"},
+  DAL:{primary:"#003594",secondary:"#869397",text:"#869397"},
+  LAR:{primary:"#003594",secondary:"#FFA300",text:"#FFA300"},
+  BAL:{primary:"#241773",secondary:"#9E7C0C",text:"#9E7C0C"},
+  TB:{primary:"#D50A0A",secondary:"#34302B",text:"#FFE066"},
+  IND:{primary:"#002C5F",secondary:"#A5ACAF",text:"#A5ACAF"},
+  DET:{primary:"#0076B6",secondary:"#B0B7BC",text:"#fff"},
+  MIN:{primary:"#4F2683",secondary:"#FFC62F",text:"#FFC62F"},
+  CAR:{primary:"#0085CA",secondary:"#101820",text:"#BFC0BF"},
+  GB:{primary:"#203731",secondary:"#FFB612",text:"#FFB612"},
+  PIT:{primary:"#101820",secondary:"#FFB612",text:"#FFB612"},
+  LAC:{primary:"#0080C6",secondary:"#FFC20E",text:"#FFC20E"},
+  PHI:{primary:"#004C54",secondary:"#A5ACAF",text:"#A5ACAF"},
+  JAX:{primary:"#006778",secondary:"#9F792C",text:"#9F792C"},
+  CHI:{primary:"#0B162A",secondary:"#C83803",text:"#C83803"},
+  BUF:{primary:"#00338D",secondary:"#C60C30",text:"#C60C30"},
+  SF:{primary:"#AA0000",secondary:"#B3995D",text:"#B3995D"},
+  HOU:{primary:"#03202F",secondary:"#A71930",text:"#A71930"},
+  DEN:{primary:"#FB4F14",secondary:"#002244",text:"#002244"},
+  SEA:{primary:"#002244",secondary:"#69BE28",text:"#69BE28"},
+  ATL:{primary:"#A71930",secondary:"#000000",text:"#A71930"},
+  NE:{primary:"#002244",secondary:"#C60C30",text:"#C60C30"},
+};
+
+function makeHelmetSVG(abbr,size=38){
+  const c=TEAM_COLORS[abbr]||{primary:"#333",secondary:"#aaa",text:"#fff"};
+  const p=c.primary,s=c.secondary,t=c.text;
+  const fontSize=abbr.length>2?6:7;
+  // Generic football helmet profile — original fan art, not official design
+  return `<svg width="${size}" height="${size}" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+  <defs>
+    <radialGradient id="hg${abbr}" cx="35%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="${lighten(p,.28)}"/>
+      <stop offset="100%" stop-color="${p}"/>
+    </radialGradient>
+    <clipPath id="hclip${abbr}"><path d="M7 22 C7 10 13 4 22 4 C31 4 36 10 36 18 C36 24 33 28 29 30 L29 34 L12 34 L12 30 C9 28 7 25 7 22Z"/></clipPath>
+  </defs>
+  <!-- Shell -->
+  <path d="M7 22 C7 10 13 4 22 4 C31 4 36 10 36 18 C36 24 33 28 29 30 L29 34 L12 34 L12 30 C9 28 7 25 7 22Z"
+        fill="url(#hg${abbr})" stroke="${darken(p,.18)}" stroke-width="1.2"/>
+  <!-- Stripe -->
+  <rect x="17" y="4" width="4" height="26" fill="${s}" opacity="0.55" clip-path="url(#hclip${abbr})"/>
+  <!-- Facemask -->
+  <path d="M12 30 C10 28 9 26 9 24 L9 20 C9 18 10 17 11 17 L13 17 L13 30Z"
+        fill="none" stroke="${s}" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M9 21 L13 21" stroke="${s}" stroke-width="1.2"/>
+  <path d="M9 24 L13 24" stroke="${s}" stroke-width="1.2"/>
+  <!-- Earhole -->
+  <ellipse cx="11" cy="22" rx="2" ry="2.2" fill="${darken(p,.25)}" stroke="${darken(p,.35)}" stroke-width=".7"/>
+  <!-- Chinstrap -->
+  <path d="M12 34 Q19 37 29 34" fill="none" stroke="${s}" stroke-width="1.2" opacity=".7"/>
+  <!-- Abbreviation -->
+  <text x="24" y="20" text-anchor="middle" dominant-baseline="central"
+        font-family="'Barlow Condensed',sans-serif" font-size="${fontSize}" font-weight="800"
+        fill="${t}" opacity="0.92" letter-spacing="-0.3">${abbr}</text>
+  <!-- Shine -->
+  <ellipse cx="25" cy="11" rx="5" ry="3" fill="white" opacity="0.12" transform="rotate(-20 25 11)"/>
+</svg>`;
+}
+
+function lighten(hex,amt){return adjustColor(hex,amt);}
+function darken(hex,amt){return adjustColor(hex,-amt);}
+function adjustColor(hex,amt){
+  let h=hex.replace('#','');
+  if(h.length===3)h=h.split('').map(c=>c+c).join('');
+  const n=parseInt(h,16);
+  let r=Math.min(255,Math.max(0,((n>>16)&255)+Math.round(amt*255)));
+  let g=Math.min(255,Math.max(0,((n>>8)&255)+Math.round(amt*255)));
+  let b=Math.min(255,Math.max(0,(n&255)+Math.round(amt*255)));
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+/* ═══════════════════════════════
+   TIMER ENGINE
+   Official 2026 NFL Draft clock rules (source: NFL Football Operations):
+   Round 1: 8 min (new rule effective 2026, per NFL/Adam Schefter)
+   Round 2: 7 min
+   Rounds 3–6: 5 min
+   Round 7: 4 min
+   On clock expiry: next team may pick; previous team can still submit but loses priority
+   ═══════════════════════════════ */
+const ROUND_SECONDS={1:480,2:420,3:300,4:300,5:300,6:300,7:240};
+
+const TIMER={
+  totalSec:480,
+  remaining:480,
+  paused:false,
+  expired:false,
+  clockExpiredDismissed:false,
+  interval:null,
+  skippedTeam:null,  // set when next team takes priority after expiry
+};
+
+function getRoundSeconds(round){return ROUND_SECONDS[round]||300;}
+function getRoundLabel(round){
+  const m=getRoundSeconds(round)/60;
+  return `ROUND ${round} CLOCK — ${m}:00`;
+}
+
+function startTimer(round){
+  clearInterval(TIMER.interval);
+  const total=getRoundSeconds(round);
+  TIMER.totalSec=total;
+  TIMER.remaining=total;
+  TIMER.paused=false;
+  TIMER.expired=false;
+  TIMER.clockExpiredDismissed=false;
+  TIMER.skippedTeam=null;
+  document.getElementById('expiredBanner').classList.remove('show');
+  document.getElementById('timerRoundLabel').textContent=getRoundLabel(round);
+  updateTimerUI();
+  TIMER.interval=setInterval(()=>{
+    if(TIMER.paused||TIMER.expired)return;
+    TIMER.remaining--;
+    if(TIMER.remaining<=0){TIMER.remaining=0;onClockExpired();}
+    updateTimerUI();
+  },1000);
+}
+
+function updateTimerUI(){
+  const r=TIMER.remaining;
+  const total=TIMER.totalSec;
+  const pct=r/total;
+  const m=Math.floor(r/60);
+  const s=(r%60).toString().padStart(2,'0');
+  const label=`${m}:${s}`;
+  document.getElementById('timerNumeral').textContent=label;
+  // Arc
+  const arc=document.getElementById('timerArc');
+  const circ=125.66;
+  arc.style.strokeDashoffset=((1-pct)*circ).toFixed(2);
+  // Color
+  let color=TIMER.expired?'#ef4444':pct>.5?'#22c55e':pct>.25?'#fbbf24':'#ef4444';
+  arc.style.stroke=color;
+  document.getElementById('timerNumeral').style.fill=TIMER.expired?'#ef4444':pct<=.25?'#fbbf24':'';
+  // Strip
+  const strip=document.getElementById('timerStrip');
+  strip.style.width=(pct*100)+'%';
+  strip.style.backgroundColor=color;
+  // Status pill
+  const pill=document.getElementById('timerStatusPill');
+  if(TIMER.expired){
+    pill.className='timer-status-pill expired';
+    pill.textContent='⏱ CLOCK EXPIRED';
+  } else if(TIMER.paused){
+    pill.className='timer-status-pill paused';
+    pill.textContent='⏸ PAUSED';
+  } else if(pct<=.20){
+    pill.className='timer-status-pill critical';
+    pill.textContent='⚠ HURRY UP!';
+  } else if(pct<=.40){
+    pill.className='timer-status-pill warning';
+    pill.textContent='⏳ TIME RUNNING';
+  } else {
+    pill.className='timer-status-pill running';
+    pill.textContent='● ON THE CLOCK';
+  }
+  // Pause button label
+  document.getElementById('timerPauseBtn').textContent=TIMER.paused?'▶ Resume':'⏸ Pause';
+}
+
+function toggleTimerPause(){
+  TIMER.paused=!TIMER.paused;
+  updateTimerUI();
+}
+
+function onClockExpired(){
+  TIMER.expired=true;
+  clearInterval(TIMER.interval);
+  updateTimerUI();
+  // Play warning tone
+  playExpiredTone();
+  // Show expired banner in center
+  document.getElementById('expiredBanner').classList.add('show');
+  // Show overlay with official rule explanation
+  const slot=getActiveSlot();
+  const nextSlot=STATE.order[STATE.currentPick+1];
+  const expBody=document.getElementById('expireBody');
+  const expLine=document.getElementById('expireTeamLine');
+  if(slot&&nextSlot){
+    const currTeam=TEAMS[slot.team]?.name||slot.team;
+    const nextTeam=TEAMS[nextSlot.team]?.name||nextSlot.team;
+    expBody.innerHTML=`Official NFL rule: time has expired for <strong>${currTeam}</strong>.<br>
+      <strong>${nextTeam}</strong> is now free to make their selection.<br>
+      <span style="font-size:11px;opacity:.8;">${currTeam} may still submit a pick but loses priority — ${nextTeam} can take their player first.</span>`;
+    expLine.textContent='';
+  }
+  document.getElementById('clockExpireOverlay').classList.add('show');
+}
+
+function dismissExpireAndPick(){
+  document.getElementById('clockExpireOverlay').classList.remove('show');
+  TIMER.clockExpiredDismissed=true;
+  showToast('⏱ Late pick — make your selection now');
+}
+
+function triggerNextTeamSkip(){
+  // Next team jumps ahead per official NFL rule
+  document.getElementById('clockExpireOverlay').classList.remove('show');
+  const slot=getActiveSlot();
+  TIMER.skippedTeam=slot?.team||null;
+  STATE.currentPick++;  // advance pointer: next team now on clock
+  autoSave();render();
+  showToast(`⏩ ${TEAMS[slot?.team||'']?.name||''} passed — next team now on clock`);
+}
+
+/* ═══════════════════════════════
+   WEB AUDIO — ORIGINAL FANFARE
+   A custom synthesized pick-in jingle using the Web Audio API.
+   This is 100% original audio — no NFL broadcast music,
+   no sampled content, no copyrighted material.
+   Built from sine/triangle oscillators + gain envelopes.
+   ═══════════════════════════════ */
+let _audioCtx=null;
+function getAudioCtx(){
+  if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(_audioCtx.state==='suspended')_audioCtx.resume();
+  return _audioCtx;
+}
+
+function playPickInFanfare(){
+  // "Pick is in" triumphant 4-note ascending fanfare
+  // Frequencies: E4→G4→B4→E5 (major triad + octave — open, triumphant feel)
+  const ctx=getAudioCtx();
+  const notes=[
+    {freq:329.63,start:0,dur:.12,vol:.32},   // E4
+    {freq:392.00,start:.10,dur:.12,vol:.28},  // G4
+    {freq:493.88,start:.20,dur:.15,vol:.30},  // B4
+    {freq:659.25,start:.32,dur:.40,vol:.40},  // E5 (hold)
+    {freq:523.25,start:.34,dur:.30,vol:.18},  // C5 (harmony)
+  ];
+  notes.forEach(n=>{
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.type='triangle';
+    osc.frequency.value=n.freq;
+    gain.gain.setValueAtTime(0,ctx.currentTime+n.start);
+    gain.gain.linearRampToValueAtTime(n.vol,ctx.currentTime+n.start+.02);
+    gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+n.start+n.dur);
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start(ctx.currentTime+n.start);
+    osc.stop(ctx.currentTime+n.start+n.dur+.05);
+  });
+  // Kick-drum thump
+  const buf=ctx.createBuffer(1,ctx.sampleRate*.08,ctx.sampleRate);
+  const data=buf.getChannelData(0);
+  for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,4)*.5;
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const kGain=ctx.createGain();kGain.gain.value=.6;
+  src.connect(kGain);kGain.connect(ctx.destination);src.start(ctx.currentTime);
+}
+
+function playExpiredTone(){
+  // Descending two-note "buzz" — clock alarm feel, original
+  const ctx=getAudioCtx();
+  [[220,.0,.18,.30],[196,.16,.18,.25]].forEach(([freq,start,dur,vol])=>{
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.type='sawtooth';osc.frequency.value=freq;
+    gain.gain.setValueAtTime(0,ctx.currentTime+start);
+    gain.gain.linearRampToValueAtTime(vol,ctx.currentTime+start+.02);
+    gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+start+dur);
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start(ctx.currentTime+start);osc.stop(ctx.currentTime+start+dur+.05);
+  });
+}
+
+function playUndoTone(){
+  const ctx=getAudioCtx();
+  const osc=ctx.createOscillator();const gain=ctx.createGain();
+  osc.type='sine';osc.frequency.value=300;
+  gain.gain.setValueAtTime(.2,ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.18);
+  osc.connect(gain);gain.connect(ctx.destination);
+  osc.start();osc.stop(ctx.currentTime+.2);
+}
+
+/* ═══════════════════════════════
+   TEAMS DATA
+   ═══════════════════════════════ */
+const TEAMS={
+  LV:{name:"Las Vegas Raiders",abbr:"LV",conf:"AFC"},
+  NYJ:{name:"New York Jets",abbr:"NYJ",conf:"AFC"},
+  ARI:{name:"Arizona Cardinals",abbr:"ARI",conf:"NFC"},
+  TEN:{name:"Tennessee Titans",abbr:"TEN",conf:"AFC"},
+  NYG:{name:"New York Giants",abbr:"NYG",conf:"NFC"},
+  CLE:{name:"Cleveland Browns",abbr:"CLE",conf:"AFC"},
+  WAS:{name:"Washington Commanders",abbr:"WAS",conf:"NFC"},
+  NO:{name:"New Orleans Saints",abbr:"NO",conf:"NFC"},
+  KC:{name:"Kansas City Chiefs",abbr:"KC",conf:"AFC"},
+  CIN:{name:"Cincinnati Bengals",abbr:"CIN",conf:"AFC"},
+  MIA:{name:"Miami Dolphins",abbr:"MIA",conf:"AFC"},
+  DAL:{name:"Dallas Cowboys",abbr:"DAL",conf:"NFC"},
+  LAR:{name:"Los Angeles Rams",abbr:"LAR",conf:"NFC"},
+  BAL:{name:"Baltimore Ravens",abbr:"BAL",conf:"AFC"},
+  TB:{name:"Tampa Bay Buccaneers",abbr:"TB",conf:"NFC"},
+  IND:{name:"Indianapolis Colts",abbr:"IND",conf:"AFC"},
+  DET:{name:"Detroit Lions",abbr:"DET",conf:"NFC"},
+  MIN:{name:"Minnesota Vikings",abbr:"MIN",conf:"NFC"},
+  CAR:{name:"Carolina Panthers",abbr:"CAR",conf:"NFC"},
+  GB:{name:"Green Bay Packers",abbr:"GB",conf:"NFC"},
+  PIT:{name:"Pittsburgh Steelers",abbr:"PIT",conf:"AFC"},
+  LAC:{name:"Los Angeles Chargers",abbr:"LAC",conf:"AFC"},
+  PHI:{name:"Philadelphia Eagles",abbr:"PHI",conf:"NFC"},
+  JAX:{name:"Jacksonville Jaguars",abbr:"JAX",conf:"AFC"},
+  CHI:{name:"Chicago Bears",abbr:"CHI",conf:"NFC"},
+  BUF:{name:"Buffalo Bills",abbr:"BUF",conf:"AFC"},
+  SF:{name:"San Francisco 49ers",abbr:"SF",conf:"NFC"},
+  HOU:{name:"Houston Texans",abbr:"HOU",conf:"AFC"},
+  DEN:{name:"Denver Broncos",abbr:"DEN",conf:"AFC"},
+  SEA:{name:"Seattle Seahawks",abbr:"SEA",conf:"NFC"},
+  ATL:{name:"Atlanta Falcons",abbr:"ATL",conf:"NFC"},
+  NE:{name:"New England Patriots",abbr:"NE",conf:"AFC"},
+};
+
+const TEAM_NEEDS={
+  LV:["QB","OL","EDGE"],NYJ:["EDGE","WR","CB"],ARI:["QB","OT","WR"],
+  TEN:["QB","WR","CB"],NYG:["S","WR","EDGE"],CLE:["WR","CB","OT"],
+  WAS:["EDGE","DT","WR"],NO:["WR","OT","QB"],KC:["CB","WR","DT"],
+  CIN:["OT","CB","EDGE"],MIA:["WR","CB","OT"],DAL:["EDGE","DT","OT"],
+  LAR:["EDGE","WR","S"],BAL:["OT","WR","CB"],TB:["WR","OT","S"],
+  IND:["EDGE","OT","LB"],DET:["OT","LB","CB"],MIN:["S","CB","WR"],
+  CAR:["QB","WR","OT"],GB:["EDGE","DT","OT"],PIT:["QB","WR","EDGE"],
+  LAC:["OT","DT","WR"],PHI:["QB","CB","EDGE"],JAX:["QB","OT","EDGE"],
+  CHI:["EDGE","WR","OT"],BUF:["CB","WR","DT"],SF:["EDGE","WR","OT"],
+  HOU:["CB","LB","WR"],DEN:["CB","WR","LB"],SEA:["QB","WR","EDGE"],
+  ATL:["WR","OT","EDGE"],NE:["QB","OT","EDGE"],
+};
+
+const JH_VALUES={1:3000,2:2600,3:2200,4:1800,5:1700,6:1600,7:1500,8:1400,9:1350,10:1300,11:1250,12:1200,13:1150,14:1100,15:1050,16:1000,17:950,18:900,19:875,20:850,21:800,22:780,23:760,24:740,25:720,26:700,27:680,28:660,29:640,30:620,31:600,32:590,33:580,34:560,35:550,36:540,37:530,38:520,39:510,40:500,41:490,42:480,43:470,44:460,45:450,46:440,47:430,48:420,49:410,50:400,51:390,52:380,53:370,54:360,55:350,56:340,57:330,58:320,59:310,60:300,61:292,62:284,63:276,64:268,65:260,66:252,67:244,68:236,69:228,70:220,71:212,72:204,73:196,74:188,75:180,76:172,77:164,78:156,79:148,80:140,81:132,82:124,83:116,84:108,85:100,86:96,87:92,88:88,89:84,90:80,91:77,92:74,93:71,94:68,95:65,96:62,97:59,98:56,99:53,100:50};
+function getPickValue(o){if(JH_VALUES[o])return JH_VALUES[o];if(o<=120)return Math.max(20,Math.round(50-(o-100)*1.5));if(o<=160)return Math.max(10,Math.round(20-(o-120)*.3));return Math.max(5,Math.round(10-(o-160)*.05));}
+
+const POS_VALUE={QB:.95,OT:.85,EDGE:.85,CB:.75,WR:.72,DT:.70,LB:.65,TE:.62,RB:.58,S:.58,IOL:.52,G:.52,C:.50};
+
+/* ─── DRAFT ORDER — All 257 picks verified against NFL.com (Apr 13, 2026) ───
+   Source: https://www.nfl.com/news/2026-nfl-draft-order-for-all-seven-rounds
+   Comp = compensatory pick. Note = trade origin where listed by NFL.com.
+   ─────────────────────────────────────────────────────────────────────── */
+const DRAFT_ORDER=[
+  // ── ROUND 1 ──
+  {overall:1,  round:1,rpick:1,  team:"LV",  comp:false},
+  {overall:2,  round:1,rpick:2,  team:"NYJ", comp:false},
+  {overall:3,  round:1,rpick:3,  team:"ARI", comp:false},
+  {overall:4,  round:1,rpick:4,  team:"TEN", comp:false},
+  {overall:5,  round:1,rpick:5,  team:"NYG", comp:false},
+  {overall:6,  round:1,rpick:6,  team:"CLE", comp:false},
+  {overall:7,  round:1,rpick:7,  team:"WAS", comp:false},
+  {overall:8,  round:1,rpick:8,  team:"NO",  comp:false},
+  {overall:9,  round:1,rpick:9,  team:"KC",  comp:false},
+  {overall:10, round:1,rpick:10, team:"CIN", comp:false},
+  {overall:11, round:1,rpick:11, team:"MIA", comp:false},
+  {overall:12, round:1,rpick:12, team:"DAL", comp:false},
+  {overall:13, round:1,rpick:13, team:"LAR", comp:false, note:"from ATL"},
+  {overall:14, round:1,rpick:14, team:"BAL", comp:false},
+  {overall:15, round:1,rpick:15, team:"TB",  comp:false},
+  {overall:16, round:1,rpick:16, team:"NYJ", comp:false, note:"from IND"},
+  {overall:17, round:1,rpick:17, team:"DET", comp:false},
+  {overall:18, round:1,rpick:18, team:"MIN", comp:false},
+  {overall:19, round:1,rpick:19, team:"CAR", comp:false},
+  {overall:20, round:1,rpick:20, team:"DAL", comp:false, note:"from GB"},
+  {overall:21, round:1,rpick:21, team:"PIT", comp:false},
+  {overall:22, round:1,rpick:22, team:"LAC", comp:false},
+  {overall:23, round:1,rpick:23, team:"PHI", comp:false},
+  {overall:24, round:1,rpick:24, team:"CLE", comp:false, note:"from JAX"},
+  {overall:25, round:1,rpick:25, team:"CHI", comp:false},
+  {overall:26, round:1,rpick:26, team:"BUF", comp:false},
+  {overall:27, round:1,rpick:27, team:"SF",  comp:false},
+  {overall:28, round:1,rpick:28, team:"HOU", comp:false},
+  {overall:29, round:1,rpick:29, team:"KC",  comp:false, note:"from LAR"},
+  {overall:30, round:1,rpick:30, team:"MIA", comp:false, note:"from DEN"},
+  {overall:31, round:1,rpick:31, team:"NE",  comp:false},
+  {overall:32, round:1,rpick:32, team:"SEA", comp:false},
+  // ── ROUND 2 ──
+  {overall:33, round:2,rpick:1,  team:"NYJ", comp:false},
+  {overall:34, round:2,rpick:2,  team:"ARI", comp:false},
+  {overall:35, round:2,rpick:3,  team:"TEN", comp:false},
+  {overall:36, round:2,rpick:4,  team:"LV",  comp:false},
+  {overall:37, round:2,rpick:5,  team:"NYG", comp:false},
+  {overall:38, round:2,rpick:6,  team:"HOU", comp:false, note:"from WAS"},
+  {overall:39, round:2,rpick:7,  team:"CLE", comp:false},
+  {overall:40, round:2,rpick:8,  team:"KC",  comp:false},
+  {overall:41, round:2,rpick:9,  team:"CIN", comp:false},
+  {overall:42, round:2,rpick:10, team:"NO",  comp:false},
+  {overall:43, round:2,rpick:11, team:"MIA", comp:false},
+  {overall:44, round:2,rpick:12, team:"NYJ", comp:false, note:"from DAL"},
+  {overall:45, round:2,rpick:13, team:"BAL", comp:false},
+  {overall:46, round:2,rpick:14, team:"TB",  comp:false},
+  {overall:47, round:2,rpick:15, team:"IND", comp:false},
+  {overall:48, round:2,rpick:16, team:"ATL", comp:false},
+  {overall:49, round:2,rpick:17, team:"MIN", comp:false},
+  {overall:50, round:2,rpick:18, team:"DET", comp:false},
+  {overall:51, round:2,rpick:19, team:"CAR", comp:false},
+  {overall:52, round:2,rpick:20, team:"GB",  comp:false},
+  {overall:53, round:2,rpick:21, team:"PIT", comp:false},
+  {overall:54, round:2,rpick:22, team:"PHI", comp:false},
+  {overall:55, round:2,rpick:23, team:"LAC", comp:false},
+  {overall:56, round:2,rpick:24, team:"JAX", comp:false},
+  {overall:57, round:2,rpick:25, team:"CHI", comp:false},
+  {overall:58, round:2,rpick:26, team:"SF",  comp:false},
+  {overall:59, round:2,rpick:27, team:"HOU", comp:false},
+  {overall:60, round:2,rpick:28, team:"CHI", comp:false, note:"from BUF"},
+  {overall:61, round:2,rpick:29, team:"LAR", comp:false},
+  {overall:62, round:2,rpick:30, team:"DEN", comp:false},
+  {overall:63, round:2,rpick:31, team:"NE",  comp:false},
+  {overall:64, round:2,rpick:32, team:"SEA", comp:false},
+  // ── ROUND 3 ──
+  {overall:65, round:3,rpick:1,  team:"ARI", comp:false},
+  {overall:66, round:3,rpick:2,  team:"TEN", comp:false},
+  {overall:67, round:3,rpick:3,  team:"LV",  comp:false},
+  {overall:68, round:3,rpick:4,  team:"PHI", comp:false, note:"from NYJ"},
+  {overall:69, round:3,rpick:5,  team:"HOU", comp:false, note:"from NYG"},
+  {overall:70, round:3,rpick:6,  team:"CLE", comp:false},
+  {overall:71, round:3,rpick:7,  team:"WAS", comp:false},
+  {overall:72, round:3,rpick:8,  team:"CIN", comp:false},
+  {overall:73, round:3,rpick:9,  team:"NO",  comp:false},
+  {overall:74, round:3,rpick:10, team:"KC",  comp:false},
+  {overall:75, round:3,rpick:11, team:"MIA", comp:false},
+  {overall:76, round:3,rpick:12, team:"PIT", comp:false, note:"from DAL"},
+  {overall:77, round:3,rpick:13, team:"TB",  comp:false},
+  {overall:78, round:3,rpick:14, team:"IND", comp:false},
+  {overall:79, round:3,rpick:15, team:"ATL", comp:false},
+  {overall:80, round:3,rpick:16, team:"BAL", comp:false},
+  {overall:81, round:3,rpick:17, team:"JAX", comp:false, note:"from DET"},
+  {overall:82, round:3,rpick:18, team:"MIN", comp:false},
+  {overall:83, round:3,rpick:19, team:"CAR", comp:false},
+  {overall:84, round:3,rpick:20, team:"GB",  comp:false},
+  {overall:85, round:3,rpick:21, team:"PIT", comp:false},
+  {overall:86, round:3,rpick:22, team:"LAC", comp:false},
+  {overall:87, round:3,rpick:23, team:"MIA", comp:false, note:"from PHI"},
+  {overall:88, round:3,rpick:24, team:"JAX", comp:false},
+  {overall:89, round:3,rpick:25, team:"CHI", comp:false},
+  {overall:90, round:3,rpick:26, team:"MIA", comp:false, note:"from HOU"},
+  {overall:91, round:3,rpick:27, team:"BUF", comp:false},
+  {overall:92, round:3,rpick:28, team:"DAL", comp:false, note:"from SF"},
+  {overall:93, round:3,rpick:29, team:"LAR", comp:false},
+  {overall:94, round:3,rpick:30, team:"MIA", comp:false, note:"from DEN"},
+  {overall:95, round:3,rpick:31, team:"NE",  comp:false},
+  {overall:96, round:3,rpick:32, team:"SEA", comp:false},
+  {overall:97, round:3,rpick:33, team:"MIN", comp:true},
+  {overall:98, round:3,rpick:34, team:"PHI", comp:true},
+  {overall:99, round:3,rpick:35, team:"PIT", comp:true},
+  {overall:100,round:3,rpick:36, team:"JAX", comp:true, note:"from DET; Special Comp"},
+  // ── ROUND 4 ──
+  {overall:101,round:4,rpick:1,  team:"TEN", comp:false},
+  {overall:102,round:4,rpick:2,  team:"LV",  comp:false},
+  {overall:103,round:4,rpick:3,  team:"NYJ", comp:false},
+  {overall:104,round:4,rpick:4,  team:"ARI", comp:false},
+  {overall:105,round:4,rpick:5,  team:"NYG", comp:false},
+  {overall:106,round:4,rpick:6,  team:"HOU", comp:false, note:"from WAS"},
+  {overall:107,round:4,rpick:7,  team:"CLE", comp:false},
+  {overall:108,round:4,rpick:8,  team:"DEN", comp:false, note:"from NO"},
+  {overall:109,round:4,rpick:9,  team:"KC",  comp:false},
+  {overall:110,round:4,rpick:10, team:"CIN", comp:false},
+  {overall:111,round:4,rpick:11, team:"DEN", comp:false, note:"from MIA"},
+  {overall:112,round:4,rpick:12, team:"DAL", comp:false},
+  {overall:113,round:4,rpick:13, team:"IND", comp:false},
+  {overall:114,round:4,rpick:14, team:"PHI", comp:false, note:"from ATL"},
+  {overall:115,round:4,rpick:15, team:"BAL", comp:false},
+  {overall:116,round:4,rpick:16, team:"TB",  comp:false},
+  {overall:117,round:4,rpick:17, team:"LV",  comp:false, note:"from MIN via JAX"},
+  {overall:118,round:4,rpick:18, team:"DET", comp:false},
+  {overall:119,round:4,rpick:19, team:"CAR", comp:false},
+  {overall:120,round:4,rpick:20, team:"GB",  comp:false},
+  {overall:121,round:4,rpick:21, team:"PIT", comp:false},
+  {overall:122,round:4,rpick:22, team:"ATL", comp:false, note:"from PHI"},
+  {overall:123,round:4,rpick:23, team:"LAC", comp:false},
+  {overall:124,round:4,rpick:24, team:"JAX", comp:false},
+  {overall:125,round:4,rpick:25, team:"NE",  comp:false, note:"from CHI via KC"},
+  {overall:126,round:4,rpick:26, team:"BUF", comp:false},
+  {overall:127,round:4,rpick:27, team:"SF",  comp:false},
+  {overall:128,round:4,rpick:28, team:"DET", comp:false, note:"from HOU"},
+  {overall:129,round:4,rpick:29, team:"CHI", comp:false, note:"from LAR"},
+  {overall:130,round:4,rpick:30, team:"MIA", comp:false, note:"from DEN"},
+  {overall:131,round:4,rpick:31, team:"NE",  comp:false},
+  {overall:132,round:4,rpick:32, team:"NO",  comp:false, note:"from SEA"},
+  {overall:133,round:4,rpick:33, team:"SF",  comp:true},
+  {overall:134,round:4,rpick:34, team:"LV",  comp:true},
+  {overall:135,round:4,rpick:35, team:"PIT", comp:true},
+  {overall:136,round:4,rpick:36, team:"NO",  comp:true},
+  {overall:137,round:4,rpick:37, team:"PHI", comp:true},
+  {overall:138,round:4,rpick:38, team:"SF",  comp:true},
+  {overall:139,round:4,rpick:39, team:"SF",  comp:true},
+  {overall:140,round:4,rpick:40, team:"NYJ", comp:true},
+  // ── ROUND 5 ──
+  {overall:141,round:5,rpick:1,  team:"HOU", comp:false, note:"from LV via CLE"},
+  {overall:142,round:5,rpick:2,  team:"TEN", comp:false, note:"from NYJ via BAL"},
+  {overall:143,round:5,rpick:3,  team:"ARI", comp:false},
+  {overall:144,round:5,rpick:4,  team:"TEN", comp:false, note:"re-acquired via LAR"},
+  {overall:145,round:5,rpick:5,  team:"NYG", comp:false},
+  {overall:146,round:5,rpick:6,  team:"CLE", comp:false},
+  {overall:147,round:5,rpick:7,  team:"WAS", comp:false},
+  {overall:148,round:5,rpick:8,  team:"KC",  comp:false},
+  {overall:149,round:5,rpick:9,  team:"CLE", comp:false, note:"from CIN"},
+  {overall:150,round:5,rpick:10, team:"NO",  comp:false},
+  {overall:151,round:5,rpick:11, team:"MIA", comp:false},
+  {overall:152,round:5,rpick:12, team:"DAL", comp:false},
+  {overall:153,round:5,rpick:13, team:"GB",  comp:false, note:"from ATL via PHI"},
+  {overall:154,round:5,rpick:14, team:"BAL", comp:false},
+  {overall:155,round:5,rpick:15, team:"TB",  comp:false},
+  {overall:156,round:5,rpick:16, team:"IND", comp:false},
+  {overall:157,round:5,rpick:17, team:"DET", comp:false},
+  {overall:158,round:5,rpick:18, team:"CAR", comp:false, note:"from MIN"},
+  {overall:159,round:5,rpick:19, team:"CAR", comp:false},
+  {overall:160,round:5,rpick:20, team:"GB",  comp:false},
+  {overall:161,round:5,rpick:21, team:"PIT", comp:false},
+  {overall:162,round:5,rpick:22, team:"BAL", comp:false, note:"from LAC"},
+  {overall:163,round:5,rpick:23, team:"MIN", comp:false, note:"from PHI"},
+  {overall:164,round:5,rpick:24, team:"JAX", comp:false},
+  {overall:165,round:5,rpick:25, team:"BUF", comp:false, note:"from CHI"},
+  {overall:166,round:5,rpick:26, team:"JAX", comp:false, note:"from SF via PHI"},
+  {overall:167,round:5,rpick:27, team:"HOU", comp:false, note:"re-acquired via PHI"},
+  {overall:168,round:5,rpick:28, team:"BUF", comp:false},
+  {overall:169,round:5,rpick:29, team:"KC",  comp:false, note:"from LAR"},
+  {overall:170,round:5,rpick:30, team:"DEN", comp:false},
+  {overall:171,round:5,rpick:31, team:"NE",  comp:false},
+  {overall:172,round:5,rpick:32, team:"NO",  comp:false, note:"from SEA"},
+  {overall:173,round:5,rpick:33, team:"BAL", comp:true},
+  {overall:174,round:5,rpick:34, team:"BAL", comp:true},
+  {overall:175,round:5,rpick:35, team:"LV",  comp:true},
+  {overall:176,round:5,rpick:36, team:"KC",  comp:true},
+  {overall:177,round:5,rpick:37, team:"DAL", comp:true},
+  {overall:178,round:5,rpick:38, team:"PHI", comp:true},
+  {overall:179,round:5,rpick:39, team:"NYJ", comp:true},
+  {overall:180,round:5,rpick:40, team:"DAL", comp:true},
+  {overall:181,round:5,rpick:41, team:"DET", comp:true},
+  // ── ROUND 6 ──
+  {overall:182,round:6,rpick:1,  team:"BUF", comp:false, note:"from NYJ via CLE, JAX, LV"},
+  {overall:183,round:6,rpick:2,  team:"ARI", comp:false},
+  {overall:184,round:6,rpick:3,  team:"TEN", comp:false},
+  {overall:185,round:6,rpick:4,  team:"LV",  comp:false},
+  {overall:186,round:6,rpick:5,  team:"NYG", comp:false},
+  {overall:187,round:6,rpick:6,  team:"WAS", comp:false},
+  {overall:188,round:6,rpick:7,  team:"SEA", comp:false, note:"from CLE"},
+  {overall:189,round:6,rpick:8,  team:"CIN", comp:false},
+  {overall:190,round:6,rpick:9,  team:"NO",  comp:false},
+  {overall:191,round:6,rpick:10, team:"NE",  comp:false, note:"from KC"},
+  {overall:192,round:6,rpick:11, team:"NYG", comp:false, note:"from MIA"},
+  {overall:193,round:6,rpick:12, team:"NYG", comp:false, note:"from DAL"},
+  {overall:194,round:6,rpick:13, team:"TEN", comp:false, note:"from BAL via NYJ"},
+  {overall:195,round:6,rpick:14, team:"TB",  comp:false},
+  {overall:196,round:6,rpick:15, team:"MIN", comp:false, note:"from IND"},
+  {overall:197,round:6,rpick:16, team:"PHI", comp:false, note:"from ATL"},
+  {overall:198,round:6,rpick:17, team:"NE",  comp:false, note:"from MIN via HOU, MIN, SF"},
+  {overall:199,round:6,rpick:18, team:"CIN", comp:false, note:"from DET via CLE"},
+  {overall:200,round:6,rpick:19, team:"CAR", comp:false},
+  {overall:201,round:6,rpick:20, team:"GB",  comp:false},
+  {overall:202,round:6,rpick:21, team:"NE",  comp:false, note:"from PIT"},
+  {overall:203,round:6,rpick:22, team:"JAX", comp:false, note:"from PHI via HOU, PHI"},
+  {overall:204,round:6,rpick:23, team:"LAC", comp:false},
+  {overall:205,round:6,rpick:24, team:"DET", comp:false, note:"from JAX"},
+  {overall:206,round:6,rpick:25, team:"CLE", comp:false, note:"from CHI"},
+  {overall:207,round:6,rpick:26, team:"LAR", comp:false, note:"from HOU via LAR, TEN"},
+  {overall:208,round:6,rpick:27, team:"LV",  comp:false, note:"from BUF via NYJ"},
+  {overall:209,round:6,rpick:28, team:"WAS", comp:false, note:"from SF"},
+  {overall:210,round:6,rpick:29, team:"KC",  comp:false, note:"from LAR"},
+  {overall:211,round:6,rpick:30, team:"BAL", comp:false, note:"from DEN via NYJ, MIN, PHI"},
+  {overall:212,round:6,rpick:31, team:"NE",  comp:false},
+  {overall:213,round:6,rpick:32, team:"DET", comp:false, note:"from SEA via JAX"},
+  {overall:214,round:6,rpick:33, team:"IND", comp:true,  note:"from PIT; Comp"},
+  {overall:215,round:6,rpick:34, team:"ATL", comp:true,  note:"from PHI; Comp"},
+  {overall:216,round:6,rpick:35, team:"PIT", comp:true},
+  // ── ROUND 7 ──
+  {overall:217,round:7,rpick:1,  team:"ARI", comp:false},
+  {overall:218,round:7,rpick:2,  team:"DAL", comp:false, note:"from TEN"},
+  {overall:219,round:7,rpick:3,  team:"LV",  comp:false},
+  {overall:220,round:7,rpick:4,  team:"BUF", comp:false, note:"from NYJ"},
+  {overall:221,round:7,rpick:5,  team:"CIN", comp:false, note:"from NYG via DAL"},
+  {overall:222,round:7,rpick:6,  team:"DET", comp:false, note:"from CLE"},
+  {overall:223,round:7,rpick:7,  team:"WAS", comp:false},
+  {overall:224,round:7,rpick:8,  team:"PIT", comp:false, note:"from NO via NE"},
+  {overall:225,round:7,rpick:9,  team:"TEN", comp:false, note:"from KC via DAL"},
+  {overall:226,round:7,rpick:10, team:"CIN", comp:false},
+  {overall:227,round:7,rpick:11, team:"MIA", comp:false},
+  {overall:228,round:7,rpick:12, team:"NYJ", comp:false, note:"from DAL via BUF, LV"},
+  {overall:229,round:7,rpick:13, team:"TB",  comp:false},
+  {overall:230,round:7,rpick:14, team:"PIT", comp:false, note:"from IND"},
+  {overall:231,round:7,rpick:15, team:"ATL", comp:false},
+  {overall:232,round:7,rpick:16, team:"LAR", comp:false, note:"from BAL"},
+  {overall:233,round:7,rpick:17, team:"JAX", comp:false, note:"from DET"},
+  {overall:234,round:7,rpick:18, team:"MIN", comp:false},
+  {overall:235,round:7,rpick:19, team:"MIN", comp:false, note:"from CAR"},
+  {overall:236,round:7,rpick:20, team:"GB",  comp:false},
+  {overall:237,round:7,rpick:21, team:"PIT", comp:false},
+  {overall:238,round:7,rpick:22, team:"MIA", comp:false, note:"from LAC via TEN, NYJ"},
+  {overall:239,round:7,rpick:23, team:"CHI", comp:false, note:"from PHI via JAX, CLE"},
+  {overall:240,round:7,rpick:24, team:"JAX", comp:false},
+  {overall:241,round:7,rpick:25, team:"CHI", comp:false},
+  {overall:242,round:7,rpick:26, team:"NYJ", comp:false, note:"from BUF via CLE"},
+  {overall:243,round:7,rpick:27, team:"HOU", comp:false, note:"from SF"},
+  {overall:244,round:7,rpick:28, team:"MIN", comp:false, note:"from HOU"},
+  {overall:245,round:7,rpick:29, team:"JAX", comp:false, note:"from LAR via HOU"},
+  {overall:246,round:7,rpick:30, team:"DEN", comp:false},
+  {overall:247,round:7,rpick:31, team:"NE",  comp:false},
+  {overall:248,round:7,rpick:32, team:"CLE", comp:false, note:"from SEA"},
+  {overall:249,round:7,rpick:33, team:"IND", comp:true},
+  {overall:250,round:7,rpick:34, team:"BAL", comp:true},
+  {overall:251,round:7,rpick:35, team:"LAR", comp:true},
+  {overall:252,round:7,rpick:36, team:"LAR", comp:true},
+  {overall:253,round:7,rpick:37, team:"BAL", comp:true},
+  {overall:254,round:7,rpick:38, team:"IND", comp:true},
+  {overall:255,round:7,rpick:39, team:"GB",  comp:true},
+  {overall:256,round:7,rpick:40, team:"DEN", comp:true},
+  {overall:257,round:7,rpick:41, team:"DEN", comp:true},
+];
+
+/* ─── PROSPECTS (top 40 seeded from Kiper Big Board Apr 2026) ─── */
+const PROSPECTS=[
+  {id:1,rank:1,name:"Fernando Mendoza",pos:"QB",school:"Indiana",cls:"Senior",ht:"6-3",wt:218,
+   strengths:["Elite accuracy — 72% completion rate","Heisman Trophy winner, 16-0 national champion","35+ starts, big-game proven","Outstanding pocket management"],
+   weaknesses:["Arm strength not top tier","Athletic ceiling below dual-threat QBs"],
+   bio:"Mendoza led Indiana to a historic 16-0 national championship in 2025, throwing for 3,535 yds, 41 TDs and 6 INTs. Consensus #1 pick.",projLow:1,projHigh:1,rankSource:"ESPN/Kiper Big Board #1 (Apr 2026). Official eligibility: NFL Football Operations."},
+  {id:2,rank:2,name:"Jeremiyah Love",pos:"RB",school:"Notre Dame",cls:"Junior",ht:"5-11",wt:205,
+   strengths:["60 forced missed tackles in 2025","Elite breakaway speed","Outstanding receiver out of backfield","10 TDs in ND's playoff run"],
+   weaknesses:["Positional value ceiling (RB)","Ball security at NFL contact level"],
+   bio:"Kiper compares Love to Reggie Bush. Vision, burst, and receiving ability are all elite. Top-5 lock.",projLow:2,projHigh:8,rankSource:"ESPN/Kiper Big Board #2 (Apr 2026)"},
+  {id:3,rank:3,name:"Arvell Reese",pos:"EDGE",school:"Ohio State",cls:"Junior",ht:"6-4",wt:245,
+   strengths:["6.5 sacks, 9 TFLs in 2025","Explosive first step","Violent hand use — NFL-ready","Scheme versatile"],
+   weaknesses:["Developing run defense consistency","Junior — still maturing"],
+   bio:"Reese is the consensus EDGE1. Kiper: 'complete football player.' Had 6.5 sacks in limited reps.",projLow:2,projHigh:10,rankSource:"ESPN/Kiper Big Board #3 (Apr 2026)"},
+  {id:4,rank:4,name:"Sonny Styles",pos:"LB",school:"Ohio State",cls:"Junior",ht:"6-3",wt:235,
+   strengths:["4.46 40-yd dash, 43.5-inch vertical","77 tackles, 7 TFLs, INT in 2025","Versatile — safety-to-LB dominant","Fred Warner comparison from NFL sources"],
+   weaknesses:["New to LB responsibilities","Junior — limited career experience at position"],
+   bio:"Styles' combine was a revelation. Fred Warner comparison. Top-5 lock for versatility.",projLow:3,projHigh:12,rankSource:"ESPN/Kiper Big Board #4 (Apr 2026)"},
+  {id:5,rank:5,name:"David Bailey",pos:"EDGE",school:"Texas Tech",cls:"Senior",ht:"6-4",wt:255,
+   strengths:["Led FBS in pressure rate (20.2%) in 2025","14.5 sacks — tied FBS lead","4.50 40-time at combine","23 TFLs in 2025"],
+   weaknesses:["One dominant season (transfer)","Run defense needs refinement"],
+   bio:"Bailey transferred from Stanford to TTU and immediately became FBS's most disruptive pass rusher. Some mocks have him at #2.",projLow:2,projHigh:8,rankSource:"ESPN/Kiper Big Board #5 (Apr 2026)"},
+  {id:6,rank:6,name:"Caleb Downs",pos:"S",school:"Ohio State",cls:"Senior",ht:"6-1",wt:197,
+   strengths:["Studied under Saban and Ryan Day","Elite instincts — reads offenses pre-snap","Consistent ball-finder","Versatile coverage"],
+   weaknesses:["Not a tone-setter in run game physically"],
+   bio:"Downs could be first safety top-5 since Eric Berry in 2010. Preparation and instincts are elite.",projLow:3,projHigh:15,rankSource:"ESPN/Kiper Big Board #6 (Apr 2026)"},
+  {id:7,rank:7,name:"Jordyn Tyson",pos:"WR",school:"Arizona State",cls:"Junior",ht:"6-2",wt:205,
+   strengths:["61 catches, 711 yds, 8 TDs in 9 games","Elite 50/50 ball catcher — red zone dominant","Kiper moved him above Tate in final rankings"],
+   weaknesses:["Missed games in 2025 due to injury","YAC consistency"],
+   bio:"Tyson went through Deion Sanders at Colorado then broke out for ASU. Red zone dominance is elite.",projLow:7,projHigh:20,rankSource:"ESPN/Kiper Big Board #7 (Apr 2026)"},
+  {id:8,rank:8,name:"Carnell Tate",pos:"WR",school:"Ohio State",cls:"Junior",ht:"5-11",wt:192,
+   strengths:["79 catches, 1,156 yds, 11 TDs in 2025","17.2 yards per catch","Precise route runner with great hands","Willing blocker"],
+   weaknesses:["Height (5-11) — scheme limitations"],
+   bio:"Kiper: 'precise route runner, great hands, outstanding body control.' Wide Receiver U product.",projLow:8,projHigh:22,rankSource:"ESPN/Kiper Big Board #8 (Apr 2026)"},
+  {id:9,rank:9,name:"Makai Lemon",pos:"WR",school:"USC",cls:"Sophomore",ht:"6-0",wt:190,
+   strengths:["Attacks ball aggressively — snatch-catch style","Ferocious after the catch","Big play threat every touch"],
+   weaknesses:["Youngest in the class (sophomore)","Route tree still developing"],
+   bio:"Kiper calls Lemon a 'warrior who plays with passion.' His catching style is unlike any other prospect.",projLow:9,projHigh:25,rankSource:"ESPN/Kiper Big Board #9 (Apr 2026)"},
+  {id:10,rank:10,name:"Francis Mauigoa",pos:"OT",school:"Miami",cls:"Junior",ht:"6-6",wt:318,
+   strengths:["826 snaps in 2025 — only 2 sacks allowed on 440 PB snaps","'True mauler' — Kiper","Guard/tackle versatility"],
+   weaknesses:["Right tackle specialist — LT transition unproven"],
+   bio:"Mauigoa's 2025 pass protection was elite. Kiper: 'true mauler' who can start Day 1.",projLow:7,projHigh:18,rankSource:"ESPN/Kiper Big Board #10 (Apr 2026)"},
+  {id:11,rank:11,name:"Spencer Fano",pos:"OT",school:"Utah",cls:"Junior",ht:"6-6",wt:311,
+   strengths:["0 sacks allowed on 382 PB snaps in 2025","Only 5 pressures all season","4.91 40-time at 311 lbs"],
+   weaknesses:["Arm length (32⅛\") may force guard move"],
+   bio:"Fano played 822 snaps in 2025 without allowing a single sack. Technical discipline is elite.",projLow:8,projHigh:20,rankSource:"ESPN/Kiper Big Board #11 (Apr 2026)"},
+  {id:12,rank:12,name:"Kenyon Sadiq",pos:"TE",school:"Oregon",cls:"Junior",ht:"6-4",wt:250,
+   strengths:["TE1 consensus across all ESPN analyst rankings","Seam-buster with YAC","Inline blocker capable"],
+   weaknesses:["Positional value ceiling (TE)"],
+   bio:"Sadiq is the clear TE1 per Kiper, Miller, Reid, and Yates. Complete game on both sides.",projLow:12,projHigh:30,rankSource:"ESPN/Kiper #12 — all four analysts agree (Apr 2026)"},
+  {id:13,rank:13,name:"Monroe Freeling",pos:"OT",school:"Georgia",cls:"Junior",ht:"6-6",wt:308,
+   strengths:["Blue-chip pedigree under Kirby Smart","Technique polished","Elite length"],
+   weaknesses:["Athleticism didn't wow at combine"],
+   bio:"Freeling was Georgia's blindside protector for 2 seasons under an elite program.",projLow:13,projHigh:28,rankSource:"ESPN/Kiper Big Board #13 (Apr 2026)"},
+  {id:14,rank:14,name:"Kadyn Proctor",pos:"OT",school:"Alabama",cls:"Junior",ht:"6-7",wt:352,
+   strengths:["40+ starts experience","Moves well for 352-lb blocker","LT experience proven"],
+   weaknesses:["Uneven play in 2025"],
+   bio:"At 6-7, 352 lbs with 40 starts. Kiper projects him to Detroit to protect Jared Goff.",projLow:14,projHigh:32,rankSource:"ESPN/Kiper Big Board #14 (Apr 2026)"},
+  {id:15,rank:15,name:"Rueben Bain Jr.",pos:"EDGE",school:"Miami",cls:"Junior",ht:"6-3",wt:258,
+   strengths:["Explosive first step — elite","High motor and relentless effort","DE or OLB versatility"],
+   weaknesses:["Pass-rush plan needs expanding"],
+   bio:"Bain was ACC's most disruptive pass rusher in 2025. First-step quickness draws NFL comparisons.",projLow:15,projHigh:40,rankSource:"ESPN/Kiper Big Board #15 (Apr 2026)"},
+  {id:16,rank:16,name:"Jermod McCoy",pos:"CB",school:"Tennessee",cls:"Senior",ht:"6-0",wt:188,
+   strengths:["Elite man coverage ability","Ball skills — high INT ceiling","6-foot frame with long arms"],
+   weaknesses:["Discipline vs. elite route runners"],
+   bio:"McCoy is Tennessee's premier corner and top CB in class per Kiper. CB1 potential.",projLow:16,projHigh:35,rankSource:"ESPN/Kiper Big Board #16 (Apr 2026)"},
+  {id:17,rank:17,name:"Mansoor Delane",pos:"CB",school:"LSU",cls:"Junior",ht:"6-1",wt:192,
+   strengths:["Long and physical","DBU pedigree — LSU","Reported 4.38 speed"],
+   weaknesses:["Short-area quickness vs. elite slots"],
+   bio:"Delane continues LSU's DBU tradition. Length and physical style in press.",projLow:17,projHigh:38,rankSource:"ESPN/Kiper Big Board #17 (Apr 2026)"},
+  {id:18,rank:18,name:"Olaivavega Ioane",pos:"IOL",school:"Penn State",cls:"Junior",ht:"6-4",wt:325,
+   strengths:["Elite interior dominance","Smart — scheme instinctive","Pull blocker in zone","Kiper: 'pure power'"],
+   weaknesses:["Lateral movement vs. athletic DTs"],
+   bio:"Ioane was Penn State's anchor. Kiper projected him to Pittsburgh — 'wrenches defenders out.'",projLow:18,projHigh:40,rankSource:"ESPN/Kiper Big Board #18 (Apr 2026)"},
+  {id:19,rank:19,name:"Ty Simpson",pos:"QB",school:"Alabama",cls:"Senior",ht:"6-2",wt:205,
+   strengths:["Pure passer with NFL arm","Alabama read progressions","Confident under pressure"],
+   weaknesses:["Behind Mendoza significantly","Needs more starting reps"],
+   bio:"Clear QB2 of this class. Kiper projected #13, Riddick called him top-15 worthy.",projLow:13,projHigh:35,rankSource:"ESPN/Kiper advisory (Apr 2026)"},
+  {id:20,rank:20,name:"Peter Woods",pos:"DT",school:"Clemson",cls:"Junior",ht:"6-3",wt:295,
+   strengths:["Rare explosiveness for interior DT","Quick first step","Kiper's top-ranked DT"],
+   weaknesses:["Production inconsistent vs. elite OL"],
+   bio:"Woods atop Kiper's DT rankings. Explosive interior with Pro Bowl upside.",projLow:20,projHigh:45,rankSource:"ESPN/Kiper — top-ranked DT (Apr 2026)"},
+  {id:21,rank:21,name:"Dillon Thieneman",pos:"S",school:"Oregon",cls:"Senior",ht:"6-0",wt:200,
+   strengths:["Ball hawk — high INT ceiling","Centerfield range","Versatile coverage packages"],
+   weaknesses:["Physicality vs. elite TEs"],
+   bio:"Kiper's #2 safety prospect. Instant starter projection in zone defense.",projLow:20,projHigh:50,rankSource:"ESPN/Kiper (Apr 2026)"},
+  {id:22,rank:22,name:"Carson Beck",pos:"QB",school:"Miami",cls:"Senior",ht:"6-4",wt:218,
+   strengths:["NFL prototype size","Strong arm","Pocket presence"],
+   weaknesses:["Decision-making under pressure","Injury history 2024"],
+   bio:"QB3 of this class after Georgia and Miami careers. Day 2 value.",projLow:40,projHigh:80,rankSource:"ESPN analysts (Apr 2026)"},
+  {id:23,rank:23,name:"KC Concepcion",pos:"WR",school:"Texas A&M",cls:"Senior",ht:"6-1",wt:198,
+   strengths:["Route running precision","YAC ability","SEC production"],
+   weaknesses:["Speed not elite","Deep separation inconsistent"],
+   bio:"Concepcion emerged as top Day 2 WR. Jordan Reid ranked him among class's best.",projLow:25,projHigh:55,rankSource:"ESPN/Reid (Apr 2026)"},
+  {id:24,rank:24,name:"Akheem Mesidor",pos:"EDGE",school:"Virginia Tech",cls:"Senior",ht:"6-4",wt:262,
+   strengths:["Disruptive interior rush","Relentless motor","Pocket collapse ability"],
+   weaknesses:["Bend at top of arc","Assignment discipline"],
+   bio:"Late riser projecting as Day 2 starter off the edge.",projLow:30,projHigh:65,rankSource:"ESPN analysts (Apr 2026)"},
+  {id:25,rank:25,name:"Blake Miller",pos:"OT",school:"Clemson",cls:"Junior",ht:"6-5",wt:305,
+   strengths:["Technique-first protector","LT instinct","Developmental frame"],
+   weaknesses:["Strength needs NFL upgrade"],
+   bio:"Clemson OL tradition continues. Technique and upside project him Day 2.",projLow:25,projHigh:60,rankSource:"ESPN positional rankings (Apr 2026)"},
+  {id:26,rank:26,name:"Avieon Terrell",pos:"CB",school:"Clemson",cls:"Senior",ht:"5-11",wt:185,
+   strengths:["Elite press technique","Career 4+ INTs","Following brother AJ — motivated"],
+   weaknesses:["Size (5-11) vs. big WRs","4.52 speed"],
+   bio:"Set to be first-round corner like his brother. Day 2 No. 2 corner starter.",projLow:40,projHigh:80,rankSource:"ESPN/Miller + NFL.com"},
+  {id:27,rank:27,name:"Emeka Egbuka",pos:"WR",school:"Ohio State",cls:"Senior",ht:"6-1",wt:205,
+   strengths:["Elite route running — full tree","High OSU production","Trusted in big moments"],
+   weaknesses:["Not elite separator at full speed"],
+   bio:"Egbuka had a decorated OSU career. Projecting as starting WR2 at NFL level.",projLow:15,projHigh:45,rankSource:"ESPN (Apr 2026)"},
+  {id:28,rank:28,name:"Marcus Lee",pos:"EDGE",school:"Texas",cls:"Senior",ht:"6-4",wt:248,
+   strengths:["Good first step","Power through arc"],
+   weaknesses:["Pass rush move set limited"],
+   bio:"Power rusher projecting as rotational starter.",projLow:80,projHigh:160,rankSource:"Advisory"},
+  {id:29,rank:29,name:"Mike Washington Jr.",pos:"RB",school:"Michigan",cls:"Senior",ht:"5-9",wt:200,
+   strengths:["Explosive in space","Return specialist upside","Power inside"],
+   weaknesses:["Vision in backfield","Pass blocking technique"],
+   bio:"Versatile third-down back and return weapon.",projLow:100,projHigh:200,rankSource:"Advisory — ESPN highlights featured"},
+  {id:30,rank:30,name:"Jaylen Moody",pos:"LB",school:"Georgia",cls:"Senior",ht:"6-2",wt:230,
+   strengths:["Sideline-to-sideline speed","NFL-ready tackling technique"],
+   weaknesses:["Coverage in space average","Not a pass rusher"],
+   bio:"Day 2 starting MIKE linebacker for a run-first defense.",projLow:40,projHigh:75,rankSource:"Advisory"},
+  {id:31,rank:31,name:"Peter Woods",pos:"DT",school:"Clemson",cls:"Junior",ht:"6-3",wt:295,
+   strengths:["Interior quickness","Pocket pusher"],weaknesses:["Production consistency"],
+   bio:"Rotational DT with disruptive upside.",projLow:30,projHigh:70,rankSource:"Advisory"},
+  {id:32,rank:32,name:"Cade Colter",pos:"TE",school:"Penn State",cls:"Senior",ht:"6-3",wt:245,
+   strengths:["Reliable intermediate target","Solid inline blocker"],weaknesses:["Not a seam breaker"],
+   bio:"Classic move TE — solid TE2 projection.",projLow:90,projHigh:180,rankSource:"Advisory"},
+  {id:33,rank:33,name:"Tommy Chen",pos:"OT",school:"Iowa",cls:"Senior",ht:"6-6",wt:310,
+   strengths:["High football IQ","Technically sound"],weaknesses:["Below-average athleticism"],
+   bio:"Iowa blue-collar lineman. Versatile reserve.",projLow:80,projHigh:160,rankSource:"Advisory"},
+  {id:34,rank:34,name:"Marcus Sherrod",pos:"CB",school:"Alabama",cls:"Junior",ht:"6-0",wt:190,
+   strengths:["Elite speed (4.38)","Ball skills"],weaknesses:["Man technique developing"],
+   bio:"Alabama-trained developmental CB2.",projLow:50,projHigh:100,rankSource:"Advisory"},
+  {id:35,rank:35,name:"Brett Thorson",pos:"P",school:"Georgia",cls:"Senior",ht:"6-4",wt:225,
+   strengths:["Consistent leg strength","Limits return opportunities"],weaknesses:["Punter — value ceiling"],
+   bio:"Kiper's top-ranked punter. Reliable placement.",projLow:200,projHigh:257,rankSource:"ESPN/Kiper specialist (Apr 2026)"},
+  {id:36,rank:36,name:"Dominic Zvada",pos:"K",school:"Michigan",cls:"Senior",ht:"5-11",wt:190,
+   strengths:["Trustworthy from 50+","Steady under pressure"],weaknesses:["Kicker — value ceiling"],
+   bio:"Pro-ready kicker with consistent leg from distance.",projLow:200,projHigh:257,rankSource:"ESPN/Kiper (Apr 2026)"},
+  {id:37,rank:37,name:"Tyree Jackson",pos:"S",school:"Penn State",cls:"Senior",ht:"6-2",wt:210,
+   strengths:["Range and closing speed","Versatile coverage"],weaknesses:["Man technique","Angle tackling"],
+   bio:"Versatile safety — Day 3 starter.",projLow:100,projHigh:200,rankSource:"Advisory"},
+  {id:38,rank:38,name:"Damien Cross",pos:"LB",school:"Ohio State",cls:"Senior",ht:"6-2",wt:228,
+   strengths:["Sideline pursuit angles","Assignment consistent"],weaknesses:["Coverage limitations"],
+   bio:"Core ST player with backup LB upside.",projLow:100,projHigh:200,rankSource:"Advisory"},
+  {id:39,rank:39,name:"Luke Basso",pos:"LS",school:"Washington",cls:"Senior",ht:"6-4",wt:245,
+   strengths:["Long snapping consistency","Athletic for position"],weaknesses:["Specialist — value ceiling"],
+   bio:"Reliable Day 3 LS pick.",projLow:220,projHigh:257,rankSource:"ESPN/Kiper specialist (Apr 2026)"},
+  {id:40,rank:40,name:"Aaron Cross",pos:"LB",school:"Notre Dame",cls:"Senior",ht:"6-3",wt:237,
+   strengths:["Athletic coverage LB","Natural downhill tackler"],weaknesses:["Pass rush contribution","Zone drops"],
+   bio:"Developmental ILB — ND football IQ to the next level.",projLow:120,projHigh:230,rankSource:"Advisory"},
+];
+
+/* ─── TICKER ITEMS ─── */
+const TICKER_ITEMS=[
+  {type:"nfl",text:"Raiders receiving calls inquiring about the No. 1 overall pick — GM John Spytek: 'Teams know where they stand right now'",src:"NFL.com"},
+  {type:"nfl",text:"Fernando Mendoza consensus #1 to Las Vegas — Tom Brady publicly praised Heisman winner's mental makeup and preparation",src:"ESPN"},
+  {type:"nfl",text:"Jets hold two first-round picks (#2 and #16) — weighing EDGE vs. trading up for WR with their deep capital",src:"ESPN/Kiper"},
+  {type:"nfl",text:"Cowboys potentially willing to trade up to the top 3 — Jerry Jones exploring blockbuster move for franchise-altering prospect",src:"NFL.com"},
+  {type:"nfl",text:"Bailey vs. Reese debate at #2 — Bailey led FBS in pressure rate (20.2%) and sacks (14.5); Reese projects as more versatile",src:"ESPN/Kiper"},
+  {type:"nfl",text:"Arizona Cardinals linked to Ty Simpson as QB2 — Brissett and Minshew on roster but draft speculation continues",src:"ESPN"},
+  {type:"nfl",text:"Giants could make history — Caleb Downs would be first safety taken top-5 since Eric Berry went to Kansas City in 2010",src:"ESPN/Kiper"},
+  {type:"nfl",text:"Dexter Lawrence requesting trade from Giants — creates salary cap flexibility heading into draft week",src:"NFL.com"},
+  {type:"nfl",text:"Detroit Lions in trade talks to move up for Spencer Fano — OT need created after Taylor Decker's release",src:"NFL.com"},
+  {type:"nfl",text:"2026 Draft timer change: Round 1 shortened to 8 minutes per pick (was 10 min) — first timing adjustment since 2008",src:"NFL Football Operations"},
+  {type:"nfl",text:"Six trades could rock Round 1 — analysts expect at least 4 deals on Thursday night in Pittsburgh",src:"NFL.com"},
+  {type:"nfl",text:"Jeremiyah Love — Kiper compares to Reggie Bush with vision, burst, and receiving ability; 10 TDs in Notre Dame's playoff run",src:"ESPN/Kiper"},
+  {type:"nfl",text:"2026 draft in Pittsburgh: 257 total picks, 33 compensatory picks — April 23-25 at Acrisure Stadium and Point State Park",src:"NFL Football Operations"},
+  {type:"sw",text:"The 'Force theme' (Binary Sunset) was composed by John Williams in just a few hours — George Lucas called it 'perfect on the first try'",icon:"🎵"},
+  {type:"sw",text:"Yoda was almost played by a monkey in a mask. Creator Jim Henson recommended using a puppet instead.",icon:"🐒"},
+  {type:"sw",text:"Darth Vader's breathing sound was created by breathing through a scuba regulator into an old microphone — a total accident by Ben Burtt",icon:"🎙️"},
+  {type:"sw",text:"Harrison Ford got the Han Solo role partly because he was installing a door when George Lucas was auditioning other actors",icon:"🚪"},
+  {type:"sw",text:"'I am your father' was kept secret from the entire cast — even David Prowse (Darth Vader's body) didn't know the real line",icon:"🤫"},
+  {type:"sw",text:"The Millennium Falcon was inspired by a hamburger with an olive on the side — Production designer Joe Johnston's original sketch still exists",icon:"🍔"},
+  {type:"sw",text:"Chewbacca's voice is a mix of walrus, bear, lion, and badger sounds — recorded by sound designer Ben Burtt over several years",icon:"🐻"},
+  {type:"sw",text:"The word 'Ewok' is never spoken once in Return of the Jedi despite the species being central to the entire film",icon:"🌲"},
+  {type:"sw",text:"Mark Hamill holds the record for being in a franchise for the most years — Luke Skywalker 1977 to 2017",icon:"⭐"},
+  {type:"sw",text:"The 'Wilhelm scream' — famous stock sound effect — appears in every Star Wars film. Listen for it in every battle scene!",icon:"😱"},
+];
+
+/* ─── STATE ─── */
+let STATE={
+  currentPick:0,picks:{},pickedIds:new Set(),history:[],
+  draftName:"My 2026 Mock",activeRound:1,
+  order:[...DRAFT_ORDER],trades:[],modalPid:null,
+  tradePicksA:new Set(),tradePicksB:new Set(),
+};
+
+function getActiveSlot(){return STATE.order[STATE.currentPick];}
+
+/* ─── SCORING ─── */
+function getNeedScore(pos,needs){
+  const alias={IOL:'G',G:'IOL',DE:'EDGE',OL:'OT'};
+  const p=alias[pos]||pos;
+  const idx=needs.findIndex(n=>(alias[n]||n)===p);
+  return idx===0?1.0:idx===1?.72:idx===2?.45:0;
+}
+function getRecs(teamAbbr,overall){
+  const needs=TEAM_NEEDS[teamAbbr]||[];
+  const avail=PROSPECTS.filter(p=>!STATE.pickedIds.has(p.id));
+  const n=avail.length||1;
+  return avail.map(p=>{
+    const need=getNeedScore(p.pos,needs);
+    const board=1-((p.rank-1)/n);
+    const pv=POS_VALUE[p.pos]||.5;
+    const av=p.rank<=overall*.80?1:.3;
+    return{...p,score:(need*.35)+(board*.30)+(pv*.15)+(.75*.12)+(av*.08)};
+  }).sort((a,b)=>b.score-a.score).slice(0,5);
+}
+function getWhyText(p,teamAbbr){
+  const needs=TEAM_NEEDS[teamAbbr]||[];
+  const idx=needs.findIndex(n=>n===p.pos);
+  if(idx===0)return`Fills top need — #${p.rank} overall still on board.`;
+  if(idx===1)return`Strong need match, best available ${p.pos} at rank #${p.rank}.`;
+  if(p.rank<=10)return`Best player available — elite talent transcends need.`;
+  return`Value pick — ${p.pos} depth at rank #${p.rank}.`;
+}
+
+/* ─── PICK LOGIC ─── */
+function makePick(pid){
+  if(STATE.currentPick>=STATE.order.length)return;
+  const slot=getActiveSlot();
+  STATE.picks[slot.overall]=pid;
+  STATE.pickedIds.add(pid);
+  STATE.history.push({overall:slot.overall,pid});
+  STATE.currentPick++;
+  // Play fanfare
+  playPickInFanfare();
+  // Animate the pick row
+  setTimeout(()=>{
+    const row=document.querySelector(`[data-overall="${slot.overall}"]`);
+    if(row){row.classList.remove('on-clock');row.classList.add('done','pick-in-anim');}
+  },50);
+  // Reset timer for next pick
+  const nextSlot=getActiveSlot();
+  if(nextSlot){startTimer(nextSlot.round);}
+  else{clearInterval(TIMER.interval);}
+  autoSave();render();showToast(`✓ Pick #${slot.overall} — ${PROSPECTS.find(p=>p.id===pid)?.name||''}`);
+}
+
+function undoPick(){
+  if(!STATE.history.length)return showToast('Nothing to undo.');
+  const last=STATE.history.pop();
+  delete STATE.picks[last.overall];
+  STATE.pickedIds.delete(last.pid);
+  STATE.currentPick--;
+  playUndoTone();
+  const slot=getActiveSlot();
+  if(slot)startTimer(slot.round);
+  autoSave();render();showToast('⟵ Undo successful');
+}
+
+function resetDraft(){
+  clearInterval(TIMER.interval);
+  STATE.currentPick=0;STATE.picks={};STATE.pickedIds=new Set();
+  STATE.history=[];STATE.activeRound=1;STATE.order=[...DRAFT_ORDER];STATE.trades=[];
+  closeConfirmModal();autoSave();render();
+  startTimer(1);
+  showToast('Draft reset!');
+}
+
+/* ─── RENDER ─── */
+function render(){
+  renderOnTheClock();renderRecs();renderRoundTabs();
+  renderBoard();renderPool();updateProgress();renderTimerTeam();
+}
+
+function renderTimerTeam(){
+  const slot=getActiveSlot();
+  if(!slot){
+    document.getElementById('timerTeamName').textContent='Draft Complete!';
+    document.getElementById('timerPickInfo').textContent='All picks made';
+    document.getElementById('timerHelmetSlot').innerHTML=makeHelmetSVG('NFL',36);
+    clearInterval(TIMER.interval);return;
+  }
+  const team=TEAMS[slot.team]||{name:slot.team};
+  document.getElementById('timerTeamName').textContent=team.name;
+  document.getElementById('timerPickInfo').textContent=`Pick #${slot.overall} · Round ${slot.round} · ${getRoundSeconds(slot.round)/60}:00 max`;
+  document.getElementById('timerHelmetSlot').innerHTML=makeHelmetSVG(slot.team,40);
+  document.getElementById('timerRoundLabel').textContent=getRoundLabel(slot.round);
+}
+
+function renderOnTheClock(){
+  const slot=getActiveSlot();
+  if(!slot){
+    document.getElementById('clockName').textContent='Draft Complete!';
+    document.getElementById('clockSub').textContent='All 257 picks made 🏆';
+    document.getElementById('ocHelmetSlot').innerHTML=makeHelmetSVG('NE',44);
+    document.getElementById('needsChips').innerHTML='';
+    document.getElementById('recCards').innerHTML='<div style="color:var(--muted);font-size:12px;padding:10px 0;">All picks made. 🎉</div>';
+    return;
+  }
+  const team=TEAMS[slot.team]||{name:slot.team};
+  document.getElementById('clockName').textContent=team.name;
+  document.getElementById('clockSub').textContent=`Pick #${slot.overall} · Round ${slot.round}`;
+  document.getElementById('ocHelmetSlot').innerHTML=makeHelmetSVG(slot.team,44);
+  const needs=TEAM_NEEDS[slot.team]||[];
+  document.getElementById('needsChips').innerHTML=needs.map((n,i)=>`<span class="need-chip nc-${i+1}">${n}</span>`).join('');
+}
+
+function renderRecs(){
+  const slot=getActiveSlot();
+  if(!slot)return;
+  const recs=getRecs(slot.team,slot.overall);
+  document.getElementById('recCards').innerHTML=recs.map((p,i)=>`
+    <div class="rec-card r${i+1}" onclick="openBioModal(${p.id})">
+      <div class="rec-num">${i+1}</div>
+      <div class="rec-name">${p.name}</div>
+      <div class="rec-meta">${p.pos} · ${p.school} · ${p.cls}</div>
+      <div class="rec-why">${getWhyText(p,slot.team)}</div>
+      <div class="rec-footer">
+        <span class="rec-rank-tag">BIG BOARD #${p.rank}</span>
+        <button class="btn-select" onclick="event.stopPropagation();confirmPick(${p.id})">SELECT</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderRoundTabs(){
+  const rounds=[...new Set(STATE.order.map(d=>d.round))];
+  document.getElementById('roundTabs').innerHTML=rounds.map(r=>`
+    <div class="round-tab ${STATE.activeRound===r?'active':''}" onclick="setRound(${r})">
+      R${r}<span style="font-size:9px;color:var(--muted);margin-left:3px;">(${STATE.order.filter(d=>d.round===r).length})</span>
+    </div>`).join('');
+}
+
+function renderBoard(){
+  const picks=STATE.order.filter(d=>d.round===STATE.activeRound);
+  document.getElementById('picksContainer').innerHTML=picks.map(slot=>{
+    const idx=STATE.order.indexOf(slot);
+    const isCurrent=idx===STATE.currentPick;
+    const pid=STATE.picks[slot.overall];
+    const prospect=pid?PROSPECTS.find(p=>p.id===pid):null;
+    const team=TEAMS[slot.team]||{};
+    const cls=isCurrent?'on-clock':pid?'done':'';
+    const helmetHTML=makeHelmetSVG(slot.team,34);
+    const tradedBadge=slot.traded?`<span class="traded-badge">TRADE</span>`:'';
+    const compBadge=slot.comp?`<span class="comp-badge">COMP</span>`:'';
+    const note=slot.note||slot.tradeNote;
+    const noteTxt=note?`<span style="font-size:8px;color:var(--muted);"> (${note})</span>`:'';
+    return`<div class="pick-row ${cls} ${slot.comp?'comp-pick':''} ${slot.traded?'traded-pick':''}" data-overall="${slot.overall}">
+      <div class="pick-num">${slot.overall}</div>
+      <div class="helmet-pick-slot">${helmetHTML}</div>
+      <div class="pick-info">
+        <div class="pick-team-name">${team.name||slot.team}${noteTxt}</div>
+        ${prospect
+          ?`<div class="pick-player-name">${prospect.name}</div><div class="pick-player-pos">${prospect.pos} · ${prospect.school}</div>`
+          :isCurrent
+            ?`<div class="pick-clock">ON THE CLOCK</div>`
+            :`<div class="pick-empty">— TBD —</div>`}
+      </div>
+      <div style="display:flex;gap:4px;">${compBadge}${tradedBadge}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderPool(){
+  const fp=document.getElementById('filterPos').value;
+  const fa=document.getElementById('filterAvail').value;
+  let list=PROSPECTS;
+  if(fp)list=list.filter(p=>p.pos===fp);
+  if(fa==='avail')list=list.filter(p=>!STATE.pickedIds.has(p.id));
+  if(fa==='drafted')list=list.filter(p=>STATE.pickedIds.has(p.id));
+  list.sort((a,b)=>a.rank-b.rank);
+  document.getElementById('poolBody').innerHTML=list.map(p=>{
+    const d=STATE.pickedIds.has(p.id);
+    let by='';
+    if(d){
+      const entry=Object.entries(STATE.picks).find(([,id])=>id===p.id);
+      if(entry){const slot=STATE.order.find(s=>s.overall===parseInt(entry[0]));if(slot)by=`<div class="drafted-by">→ ${slot.team} #${slot.overall}</div>`;}
+    }
+    const proj=p.projLow===p.projHigh?`#${p.projLow}`:`#${p.projLow}–${p.projHigh}`;
+    return`<tr class="${d?'drafted':'avail'}" onclick="${d?'':` openBioModal(${p.id})`}">
+      <td><span class="rank-num">${p.rank}</span></td>
+      <td><div class="pname">${p.name}</div><div class="pschool">${p.school}${p.cls?' · '+p.cls:''}</div>${by}</td>
+      <td><span class="pos-badge pos-${p.pos}">${p.pos}</span></td>
+      <td style="font-size:10px;color:var(--muted);">${proj}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateProgress(){
+  const pct=(STATE.currentPick/STATE.order.length)*100;
+  document.getElementById('progressBar').style.width=pct+'%';
+  document.getElementById('pickCounter').textContent=`Pick ${Math.min(STATE.currentPick+1,STATE.order.length)} of ${STATE.order.length}`;
+}
+
+function setRound(r){STATE.activeRound=r;renderRoundTabs();renderBoard();}
+
+/* ─── BIO MODAL ─── */
+function openBioModal(pid){
+  const p=PROSPECTS.find(x=>x.id===pid);if(!p)return;
+  STATE.modalPid=pid;
+  document.getElementById('modalName').textContent=p.name;
+  document.getElementById('modalMeta').textContent=`${p.pos} · ${p.school} · ${p.cls||'Sr.'}`;
+  const d=STATE.pickedIds.has(pid);const slot=getActiveSlot();
+  document.getElementById('modalStats').innerHTML=`
+    <div class="mstat"><div class="mstat-label">Rank</div><div class="mstat-val">#${p.rank}</div></div>
+    <div class="mstat"><div class="mstat-label">Pos</div><div class="mstat-val">${p.pos}</div></div>
+    <div class="mstat"><div class="mstat-label">Ht/Wt</div><div class="mstat-val">${p.ht||'—'}/${p.wt||''}</div></div>
+    <div class="mstat"><div class="mstat-label">Projected</div><div class="mstat-val">#${p.projLow}–#${p.projHigh}</div></div>`;
+  document.getElementById('modalStr').innerHTML=p.strengths.map(s=>`<li>${s}</li>`).join('');
+  document.getElementById('modalWk').innerHTML=p.weaknesses.map(w=>`<li>${w}</li>`).join('');
+  document.getElementById('modalBio').textContent=p.bio;
+  document.getElementById('modalSrc').textContent='⚡ '+p.rankSource;
+  const btn=document.getElementById('modalSelBtn');
+  if(d){btn.textContent='Already Drafted';btn.disabled=true;btn.style.opacity='.4';}
+  else if(!slot){btn.textContent='Draft Complete';btn.disabled=true;btn.style.opacity='.4';}
+  else{btn.textContent=`Select for ${TEAMS[slot.team]?.name||slot.team}`;btn.disabled=false;btn.style.opacity='1';}
+  document.getElementById('bioModal').classList.add('active');
+}
+function closeBioModal(e){if(e.target===document.getElementById('bioModal'))closeBioModalDirect();}
+function closeBioModalDirect(){document.getElementById('bioModal').classList.remove('active');STATE.modalPid=null;}
+function selectFromModal(){if(STATE.modalPid){confirmPick(STATE.modalPid);closeBioModalDirect();}}
+
+/* ─── CONFIRM PICK ─── */
+function confirmPick(pid){
+  const p=PROSPECTS.find(x=>x.id===pid);const slot=getActiveSlot();
+  if(!p||!slot)return;
+  showConfirmModal(
+    `${TEAMS[slot.team]?.name||slot.team} selects`,
+    `<strong style="color:var(--gold-light);font-size:15px;">${p.name}</strong><br><span style="color:var(--muted);font-size:12px;">${p.pos} · ${p.school} · Pick #${slot.overall}</span>`,
+    ()=>{makePick(pid);closeConfirmModal();},'✓ Confirm','Cancel');
+}
+function confirmReset(){showConfirmModal('Reset Draft?','Clears all picks, trades, and restarts from Round 1 Pick 1.',resetDraft,'↺ Reset','Cancel',true);}
+function showConfirmModal(title,desc,onOk,okLabel='OK',cancelLabel='Cancel',danger=false){
+  const box=document.getElementById('confirmBox');
+  box.innerHTML=`<div class="confirm-title">${title}</div><div class="confirm-desc">${desc}</div>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="closeConfirmModal()">${cancelLabel}</button>
+      <button class="btn ${danger?'btn-danger':'btn-gold'}" id="cOkBtn">${okLabel}</button>
+    </div>`;
+  document.getElementById('cOkBtn').onclick=onOk;
+  document.getElementById('confirmModal').classList.add('active');
+}
+function closeConfirmModal(e){if(!e||e.target===document.getElementById('confirmModal'))document.getElementById('confirmModal').classList.remove('active');}
+
+/* ─── TRADE ─── */
+function openTradeModal(){
+  const optHtml='<option value="">Select Team...</option>'+Object.values(TEAMS).map(t=>`<option value="${t.abbr}">${t.name}</option>`).join('');
+  document.getElementById('tradeTeamA').innerHTML=optHtml;
+  document.getElementById('tradeTeamB').innerHTML=optHtml;
+  STATE.tradePicksA=new Set();STATE.tradePicksB=new Set();
+  document.getElementById('tradePicksA').innerHTML='<span style="color:var(--muted);font-size:11px;">Select team above to see picks</span>';
+  document.getElementById('tradePicksB').innerHTML='<span style="color:var(--muted);font-size:11px;">Select team above to see picks</span>';
+  updateTradeValue();
+  document.getElementById('tradeModal').classList.add('active');
+}
+function closeTradeModal(e){if(e.target===document.getElementById('tradeModal'))closeTradeModalDirect();}
+function closeTradeModalDirect(){document.getElementById('tradeModal').classList.remove('active');}
+function updateTradePicks(){
+  const a=document.getElementById('tradeTeamA').value;
+  const b=document.getElementById('tradeTeamB').value;
+  STATE.tradePicksA=new Set();STATE.tradePicksB=new Set();
+  if(a)renderTradeChips('tradePicksA',a,'A');
+  if(b)renderTradeChips('tradePicksB',b,'B');
+  updateTradeValue();
+}
+function renderTradeChips(cid,abbr,side){
+  const container=document.getElementById(cid);
+  const fp=STATE.order.filter((s,i)=>s.team===abbr&&i>=STATE.currentPick);
+  if(!fp.length){container.innerHTML='<span style="color:var(--muted);font-size:11px;">No future picks</span>';return;}
+  container.innerHTML=fp.slice(0,18).map(s=>{
+    const sel=side==='A'?STATE.tradePicksA.has(s.overall):STATE.tradePicksB.has(s.overall);
+    return`<span class="pick-chip ${sel?'selected':''}" onclick="toggleTradePick(${s.overall},'${side}')" title="JH:${getPickValue(s.overall)}pts">R${s.round} #${s.overall}<br><small style="font-size:8px;opacity:.7">${getPickValue(s.overall)}pts</small></span>`;
+  }).join('');
+}
+function toggleTradePick(o,side){
+  const set=side==='A'?STATE.tradePicksA:STATE.tradePicksB;
+  if(set.has(o))set.delete(o);else set.add(o);
+  const abbr=side==='A'?document.getElementById('tradeTeamA').value:document.getElementById('tradeTeamB').value;
+  renderTradeChips(side==='A'?'tradePicksA':'tradePicksB',abbr,side);
+  updateTradeValue();
+}
+function updateTradeValue(){
+  const vA=[...STATE.tradePicksA].reduce((s,o)=>s+getPickValue(o),0);
+  const vB=[...STATE.tradePicksB].reduce((s,o)=>s+getPickValue(o),0);
+  const diff=Math.abs(vA-vB);const maxV=Math.max(vA,vB)||1;const pct=diff/maxV;
+  document.getElementById('tradeAVal').textContent=vA.toLocaleString();
+  document.getElementById('tradeBVal').textContent=vB.toLocaleString();
+  document.getElementById('tradeDiff').textContent=(vA>vB?'+':vB>vA?'-':'')+diff.toLocaleString();
+  const aAbbr=document.getElementById('tradeTeamA').value||'Team A';
+  const bAbbr=document.getElementById('tradeTeamB').value||'Team B';
+  document.getElementById('tradeALabel').textContent=`${aAbbr} Value`;
+  document.getElementById('tradeBLabel').textContent=`${bAbbr} Value`;
+  const btn=document.getElementById('acceptTradeBtn');
+  let bal='',cls='';
+  if(!vA&&!vB){bal='Select picks to analyze';cls='';btn.disabled=true;}
+  else if(pct<=.10){bal='✓ FAIR TRADE';cls='fair';btn.disabled=STATE.tradePicksA.size===0||STATE.tradePicksB.size===0;}
+  else if(pct<=.25){bal=`⚡ SLIGHTLY UNEVEN (${(pct*100).toFixed(0)}% off)`;cls='slight';btn.disabled=STATE.tradePicksA.size===0||STATE.tradePicksB.size===0;}
+  else{bal=`✗ UNFAIR (${(pct*100).toFixed(0)}% off)`;cls='unfair';btn.disabled=true;}
+  document.getElementById('tradeBalance').textContent=bal;
+  document.getElementById('tradeBalance').className='trade-balance '+cls;
+  const winner=vA>vB?bAbbr:aAbbr;
+  document.getElementById('tradeVerdict').textContent=pct<=.10?`Fair trade — both sides within 10% value tolerance.`:`This trade favors ${winner}. ${pct>.25?'Likely rejected by a real GM.':'Slight imbalance acceptable for positional need.'}`;
+}
+function executeTrade(){
+  const a=document.getElementById('tradeTeamA').value,b=document.getElementById('tradeTeamB').value;
+  if(!a||!b||a===b)return showToast('Select two different teams.');
+  STATE.order=STATE.order.map(s=>{
+    if(STATE.tradePicksA.has(s.overall))return{...s,team:b,traded:true,tradeNote:`from ${a}`};
+    if(STATE.tradePicksB.has(s.overall))return{...s,team:a,traded:true,tradeNote:`from ${b}`};
+    return s;
+  });
+  STATE.trades.push({a,b,picksA:[...STATE.tradePicksA],picksB:[...STATE.tradePicksB]});
+  closeTradeModalDirect();render();
+  showToast(`✓ Trade: ${TEAMS[a]?.name||a} ⇄ ${TEAMS[b]?.name||b}`);
+}
+
+/* ─── SAVE / LOAD / SHARE ─── */
+// VERSION KEY — bump this any time DRAFT_ORDER changes so stale localStorage is auto-purged
+const SAVE_VERSION='2026v4_corrected';
+
+function autoSave(){
+  // NOTE: order is intentionally NOT saved — it always rebuilds from the hardcoded
+  // DRAFT_ORDER constant so a stale localStorage can never override the correct pick sequence.
+  // Trades are saved separately and re-applied on top of the fresh DRAFT_ORDER on load.
+  try{localStorage.setItem('nfl26v3_auto',JSON.stringify({
+    _version:SAVE_VERSION,
+    currentPick:STATE.currentPick,
+    picks:STATE.picks,
+    pickedIds:[...STATE.pickedIds],
+    history:STATE.history,
+    draftName:STATE.draftName,
+    activeRound:STATE.activeRound,
+    trades:STATE.trades
+  }));}catch(e){}
+}
+
+function restoreState(d){
+  STATE.currentPick=d.currentPick||0;
+  STATE.picks=d.picks||{};
+  STATE.pickedIds=new Set(d.pickedIds||[]);
+  STATE.history=d.history||[];
+  STATE.draftName=d.draftName||'My 2026 Mock';
+  STATE.activeRound=d.activeRound||1;
+  STATE.trades=d.trades||[];
+  // ALWAYS rebuild order from the hardcoded DRAFT_ORDER — never from localStorage.
+  // Then re-apply any saved trades on top of the clean order.
+  STATE.order=[...DRAFT_ORDER];
+  if(STATE.trades.length>0){
+    STATE.trades.forEach(tr=>{
+      STATE.order=STATE.order.map(s=>{
+        if(tr.picksA&&tr.picksA.includes(s.overall))return{...s,team:tr.b,traded:true,tradeNote:`from ${tr.a}`};
+        if(tr.picksB&&tr.picksB.includes(s.overall))return{...s,team:tr.a,traded:true,tradeNote:`from ${tr.b}`};
+        return s;
+      });
+    });
+  }
+}
+function openSaveModal(){
+  const box=document.getElementById('confirmBox');
+  box.innerHTML=`<div class="confirm-title">💾 Save Draft</div>
+    <input class="save-input" id="saveName" placeholder="Name your mock..." value="${STATE.draftName}">
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="closeConfirmModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveDraft()">Save</button>
+    </div>`;
+  document.getElementById('confirmModal').classList.add('active');
+}
+function saveDraft(){
+  const name=document.getElementById('saveName')?.value?.trim()||STATE.draftName;
+  STATE.draftName=name;
+  const saves=JSON.parse(localStorage.getItem('nfl26v3_saves')||'{}');
+  // Save only the user's picks/progress — never save order (always rebuilt from DRAFT_ORDER)
+  saves[name]={
+    _version:SAVE_VERSION,
+    currentPick:STATE.currentPick,
+    picks:STATE.picks,
+    pickedIds:[...STATE.pickedIds],
+    history:STATE.history,
+    draftName:name,
+    activeRound:STATE.activeRound,
+    trades:STATE.trades,
+    savedAt:new Date().toISOString()
+  };
+  localStorage.setItem('nfl26v3_saves',JSON.stringify(saves));
+  closeConfirmModal();showToast(`✓ Saved "${name}"`);
+}
+function openLoadModal(){
+  const saves=JSON.parse(localStorage.getItem('nfl26v3_saves')||'{}');
+  const box=document.getElementById('confirmBox');
+  const list=Object.entries(saves).map(([name,d])=>`
+    <div class="saved-item" onclick="loadDraft('${name}')">
+      <div><div class="saved-name">${name}</div><div class="saved-meta">Pick ${(d.currentPick||0)+1} · ${new Date(d.savedAt||0).toLocaleDateString()}</div></div>
+      <button class="btn btn-danger" onclick="event.stopPropagation();deleteSave('${name}')" style="font-size:10px;padding:3px 8px;">✕</button>
+    </div>`).join('')||'<div style="color:var(--muted);font-size:12px;padding:8px 0;">No saved drafts.</div>';
+  box.innerHTML=`<div class="confirm-title">📂 Load Draft</div><div class="saved-list">${list}</div>
+    <div class="confirm-actions"><button class="btn btn-ghost" onclick="closeConfirmModal()">Close</button></div>`;
+  document.getElementById('confirmModal').classList.add('active');
+}
+function loadDraft(name){
+  const saves=JSON.parse(localStorage.getItem('nfl26v3_saves')||'{}');
+  if(!saves[name])return;
+  restoreState(saves[name]);
+  closeConfirmModal();render();
+  const slot=getActiveSlot();if(slot)startTimer(slot.round);
+  showToast(`✓ Loaded "${name}"`);
+}
+function deleteSave(name){const s=JSON.parse(localStorage.getItem('nfl26v3_saves')||'{}');delete s[name];localStorage.setItem('nfl26v3_saves',JSON.stringify(s));openLoadModal();}
+function shareDraft(){
+  // ── SHARE STRATEGY ──────────────────────────────────────────────────
+  // Outlook and corporate email scanners block URLs with long base64 hash
+  // payloads. Instead we offer two options:
+  //   1. Share Code — a short 8-char alphanumeric code stored in localStorage.
+  //      Recipients open the same HTML file on their machine and enter the code.
+  //   2. Plain-text export — a formatted summary they can paste into any email.
+  // ─────────────────────────────────────────────────────────────────────
+  const slot=getActiveSlot();
+  const picksCount=Object.keys(STATE.picks).length;
+  const box=document.getElementById('confirmBox');
+
+  // Generate a share code and store draft data under it
+  const code=Math.random().toString(36).substr(2,4).toUpperCase()+
+             Math.random().toString(36).substr(2,4).toUpperCase();
+  const sharePayload=JSON.stringify({
+    _version:SAVE_VERSION,
+    code,
+    currentPick:STATE.currentPick,
+    picks:STATE.picks,
+    pickedIds:[...STATE.pickedIds],
+    history:STATE.history,
+    draftName:STATE.draftName,
+    activeRound:STATE.activeRound,
+    trades:STATE.trades
+  });
+  try{localStorage.setItem('nfl26_share_'+code, sharePayload);}catch(e){}
+
+  // Build plain-text summary for email body
+  const round1Picks=DRAFT_ORDER.filter(s=>s.round===1).map(s=>{
+    const pid=STATE.picks[s.overall];
+    const p=pid?PROSPECTS.find(x=>x.id===pid):null;
+    const team=TEAMS[s.team]?.name||s.team;
+    return `  #${s.overall} ${team}: ${p?`${p.name} (${p.pos}, ${p.school})`:'— TBD —'}`;
+  }).join('\n');
+
+  const summary=`2026 NFL MOCK DRAFT — "${STATE.draftName}"
+Generated: ${new Date().toLocaleDateString()}
+Picks made: ${picksCount} of 257
+Share Code: ${code}
+
+ROUND 1 RESULTS:
+${round1Picks}
+
+To load this draft:
+1. Open the 2026_NFL_MockDraft_FINAL.html file
+2. Click 🔗 Share → Enter Code
+3. Type: ${code}`;
+
+  box.innerHTML=`
+    <div class="confirm-title" style="font-size:15px;">🔗 Share Draft</div>
+    <div style="margin-bottom:12px;">
+
+      <div style="background:var(--navy);border:1px solid rgba(200,168,75,.3);border-radius:8px;padding:12px;margin-bottom:10px;text-align:center;">
+        <div style="font-family:var(--font-cond);font-size:10px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px;">Share Code</div>
+        <div style="font-family:var(--font-display);font-size:32px;letter-spacing:6px;color:var(--gold);line-height:1;">${code}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;">Recipient opens the HTML file → clicks 🔗 → Enter Code → types this code</div>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button class="btn btn-gold" style="flex:1;font-size:11px;" onclick="
+          navigator.clipboard.writeText('${code}').then(()=>showToast('✓ Code copied!')).catch(()=>{});
+        ">📋 Copy Code</button>
+        <button class="btn btn-ghost" style="flex:1;font-size:11px;" onclick="
+          navigator.clipboard.writeText(document.getElementById('shareTextArea').value).then(()=>showToast('✓ Email text copied!')).catch(()=>{});
+        ">📧 Copy Email Text</button>
+      </div>
+
+      <textarea id="shareTextArea" readonly style="width:100%;background:var(--navy);border:1px solid var(--navy-border);color:#8a9ab8;padding:8px;border-radius:5px;font-size:9px;height:90px;font-family:monospace;resize:none;line-height:1.4;">${summary}</textarea>
+
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;border-top:1px solid var(--navy-border);padding-top:8px;">
+        ⚠️ <strong style="color:var(--gold-dim);">Note:</strong> Both users must have the same HTML file. The share code is saved in <em>your</em> browser's localStorage — the recipient enters the code on their machine after you send it to them via text or email.
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="closeConfirmModal()">Close</button>
+      <button class="btn btn-gold" onclick="openEnterCodeModal()">Enter a Code</button>
+    </div>`;
+  document.getElementById('confirmModal').classList.add('active');
+}
+
+function openEnterCodeModal(){
+  closeConfirmModal();
+  const box=document.getElementById('confirmBox');
+  box.innerHTML=`
+    <div class="confirm-title">Enter Share Code</div>
+    <div class="confirm-desc">Type the 8-character code from your friend's draft</div>
+    <input class="save-input" id="shareCodeInput" placeholder="e.g. A3BX7K9M"
+      maxlength="8" style="text-transform:uppercase;text-align:center;font-family:var(--font-display);font-size:22px;letter-spacing:4px;"
+      oninput="this.value=this.value.toUpperCase()">
+    <div id="codeError" style="color:var(--red);font-size:11px;margin-bottom:8px;display:none;">
+      Code not found. Make sure you have the correct code and that both users have the same HTML file open.
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="closeConfirmModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="loadFromCode()">Load Draft</button>
+    </div>`;
+  document.getElementById('confirmModal').classList.add('active');
+  setTimeout(()=>document.getElementById('shareCodeInput')?.focus(),100);
+}
+
+function loadFromCode(){
+  const code=(document.getElementById('shareCodeInput')?.value||'').trim().toUpperCase();
+  if(!code||code.length<6){
+    document.getElementById('codeError').style.display='block';
+    return;
+  }
+  const raw=localStorage.getItem('nfl26_share_'+code);
+  if(!raw){
+    document.getElementById('codeError').style.display='block';
+    return;
+  }
+  try{
+    const d=JSON.parse(raw);
+    restoreState(d);
+    closeConfirmModal();
+    _mobActiveRound=STATE.activeRound||1;
+    render();
+    const slot=getActiveSlot();
+    if(slot)startTimer(slot.round);
+    showToast(`✓ Loaded "${d.draftName||'Shared Draft'}" (Code: ${code})`);
+  }catch(e){
+    document.getElementById('codeError').style.display='block';
+  }
+}
+
+function loadFromHash(){
+  // Legacy base64 hash support — kept for any old links already shared.
+  // New shares use the code system instead.
+  const h=location.hash;if(!h.startsWith('#d='))return;
+  try{
+    const d=JSON.parse(atob(h.replace('#d=','')));
+    if(d.picks){
+      STATE.picks=d.picks;
+      STATE.pickedIds=new Set(Object.values(d.picks).map(Number));
+      STATE.draftName=d.name||'Shared Mock';
+      STATE.trades=d.trades||[];
+      STATE.order=[...DRAFT_ORDER];
+      if(STATE.trades.length>0){
+        STATE.trades.forEach(tr=>{
+          STATE.order=STATE.order.map(s=>{
+            if(tr.picksA&&tr.picksA.includes(s.overall))return{...s,team:tr.b,traded:true,tradeNote:`from ${tr.a}`};
+            if(tr.picksB&&tr.picksB.includes(s.overall))return{...s,team:tr.a,traded:true,tradeNote:`from ${tr.b}`};
+            return s;
+          });
+        });
+      }
+      const nums=Object.keys(d.picks).map(Number);
+      STATE.currentPick=nums.length>0?STATE.order.findIndex(s=>!d.picks[s.overall]&&STATE.order.indexOf(s)>Math.max(...nums.map(n=>STATE.order.findIndex(s2=>s2.overall===n)))):0;
+      if(STATE.currentPick<0)STATE.currentPick=STATE.order.length;
+      STATE.history=Object.entries(d.picks).map(([o,pid])=>({overall:parseInt(o),pid}));
+      showToast('✓ Shared draft loaded!');
+    }
+  }catch(e){}
+}
+
+/* ─── MOBILE RENDER ENGINE ─── */
+let _mobActiveTab=0;
+let _mobActiveRound=1;
+const isMobile=()=>window.innerWidth<=768;
+
+function switchMobTab(idx){
+  _mobActiveTab=idx;
+  [0,1,2].forEach(i=>{
+    document.getElementById(`mobTab${i}`).classList.toggle('active',i===idx);
+    document.getElementById(`mobPane${i}`).style.display=i===idx?'block':'none';
+  });
+  renderMobile();
+}
+
+function renderMobile(){
+  if(!isMobile())return;
+  const slot=getActiveSlot();
+
+  // Timer bar sync
+  if(slot){
+    document.getElementById('mobTimerTeam').textContent=TEAMS[slot.team]?.name||slot.team;
+    document.getElementById('mobTimerPick').textContent=`Pick #${slot.overall} · Round ${slot.round} · ${getRoundSeconds(slot.round)/60}:00 max`;
+  } else {
+    document.getElementById('mobTimerTeam').textContent='Draft Complete!';
+    document.getElementById('mobTimerPick').textContent='All 257 picks made 🏆';
+  }
+
+  // Progress + counter
+  const pct=(STATE.currentPick/STATE.order.length)*100;
+  document.getElementById('mobProgressBar').style.width=pct+'%';
+  document.getElementById('mobPickCounter').textContent=`Pick ${Math.min(STATE.currentPick+1,STATE.order.length)} of ${STATE.order.length}`;
+
+  if(_mobActiveTab===0) renderMobRecs();
+  if(_mobActiveTab===1) renderMobBoard();
+  if(_mobActiveTab===2) renderMobPool();
+}
+
+function renderMobRecs(){
+  const slot=getActiveSlot();
+  if(!slot){
+    document.getElementById('mobClockName').textContent='Draft Complete!';
+    document.getElementById('mobClockSub').textContent='All picks are in 🏆';
+    document.getElementById('mobClockHelmet').innerHTML='';
+    document.getElementById('mobNeeds').innerHTML='';
+    document.getElementById('mobRecCards').innerHTML='<div style="color:var(--muted);padding:20px 0;text-align:center;">All 257 picks have been made.</div>';
+    return;
+  }
+  const team=TEAMS[slot.team]||{name:slot.team};
+  const needs=TEAM_NEEDS[slot.team]||[];
+  const recs=getRecs(slot.team,slot.overall);
+
+  document.getElementById('mobClockHelmet').innerHTML=makeHelmetSVG(slot.team,46);
+  document.getElementById('mobClockName').textContent=team.name;
+  document.getElementById('mobClockSub').textContent=`Pick #${slot.overall} · Round ${slot.round}`;
+  document.getElementById('mobNeeds').innerHTML=needs.map((n,i)=>`<span class="need-chip nc-${i+1}">${n}</span>`).join('');
+  document.getElementById('mobRecCards').innerHTML=recs.map((p,i)=>`
+    <div class="mob-rec-card r${i+1}" onclick="openBioModal(${p.id})">
+      <div class="mob-rec-num">${i+1}</div>
+      <div class="mob-rec-name">${p.name}</div>
+      <div class="mob-rec-meta">${p.pos} · ${p.school} · ${p.cls||'Sr.'}</div>
+      <div class="mob-rec-why">${getWhyText(p,slot.team)}</div>
+      <div class="mob-rec-footer">
+        <span class="mob-rec-rank">BIG BOARD #${p.rank}</span>
+        <button class="mob-select-btn" onclick="event.stopPropagation();confirmPick(${p.id})">SELECT ›</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderMobBoard(){
+  // Round tabs
+  const rounds=[...new Set(STATE.order.map(d=>d.round))];
+  document.getElementById('mobRoundTabs').innerHTML=rounds.map(r=>`
+    <div class="mob-round-tab ${_mobActiveRound===r?'active':''}" onclick="setMobRound(${r})">${r==='1'?'Rd 1':`Rd ${r}`} <span style="font-size:9px;opacity:.6;">(${STATE.order.filter(d=>d.round===r).length})</span></div>`).join('');
+
+  const picks=STATE.order.filter(d=>d.round===_mobActiveRound);
+  document.getElementById('mobBoardRows').innerHTML=picks.map(s=>{
+    const idx=STATE.order.indexOf(s);
+    const isCur=idx===STATE.currentPick;
+    const pid=STATE.picks[s.overall];
+    const prospect=pid?PROSPECTS.find(p=>p.id===pid):null;
+    const team=TEAMS[s.team]||{};
+    const note=s.note||s.tradeNote;
+    return`<div class="mob-pick-row ${isCur?'on-clock':pid?'done':''}">
+      <div class="mob-pick-num">${s.overall}</div>
+      ${makeHelmetSVG(s.team,36)}
+      <div class="mob-pick-info">
+        <div class="mob-pick-team">${team.name||s.team}${note?` (${note})`:''}${s.comp?' · COMP':''}</div>
+        ${prospect
+          ?`<div class="mob-pick-player">${prospect.name}</div><div class="mob-pick-pos">${prospect.pos} · ${prospect.school}</div>`
+          :isCur
+            ?`<div class="mob-pick-clock">⚡ ON THE CLOCK</div>`
+            :`<div class="mob-pick-empty">— TBD —</div>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Auto-scroll to current pick
+  setTimeout(()=>{
+    const cur=document.querySelector('#mobBoardRows .mob-pick-row.on-clock');
+    if(cur)cur.scrollIntoView({behavior:'smooth',block:'center'});
+  },100);
+}
+
+function setMobRound(r){
+  _mobActiveRound=r;
+  STATE.activeRound=r;
+  renderMobBoard();
+}
+
+function renderMobPool(){
+  const fp=document.getElementById('mobFilterPos')?.value||'';
+  const fa=document.getElementById('mobFilterAvail')?.value||'';
+  let list=PROSPECTS;
+  if(fp)list=list.filter(p=>p.pos===fp);
+  if(fa==='avail')list=list.filter(p=>!STATE.pickedIds.has(p.id));
+  if(fa==='drafted')list=list.filter(p=>STATE.pickedIds.has(p.id));
+  list.sort((a,b)=>a.rank-b.rank);
+
+  document.getElementById('mobPoolRows').innerHTML=list.map(p=>{
+    const d=STATE.pickedIds.has(p.id);
+    let draftedBy='';
+    if(d){
+      const entry=Object.entries(STATE.picks).find(([,id])=>id===p.id);
+      if(entry){const slot=STATE.order.find(s=>s.overall===parseInt(entry[0]));if(slot)draftedBy=`<div class="mob-pool-drafted">→ ${slot.team} · Pick #${slot.overall}</div>`;}
+    }
+    return`<div class="mob-pool-row" onclick="${d?'':` openBioModal(${p.id})`}" style="${d?'opacity:.35;':''}">
+      <div class="mob-pool-rank">${p.rank}</div>
+      <div class="mob-pool-info">
+        <div class="mob-pool-name">${p.name}${d?' ✓':''}</div>
+        <div class="mob-pool-school">${p.school}${p.cls?' · '+p.cls:''}</div>
+        ${draftedBy}
+      </div>
+      <span class="pos-badge pos-${p.pos}">${p.pos}</span>
+    </div>`;
+  }).join('');
+}
+
+/* Sync mobile timer display with TIMER state */
+function syncMobTimer(){
+  if(!isMobile())return;
+  const r=TIMER.remaining,total=TIMER.totalSec;
+  const pct=r/total;
+  const m=Math.floor(r/60),s=(r%60).toString().padStart(2,'0');
+  const label=`${m}:${s}`;
+  const arcEl=document.getElementById('mobTimerArc');
+  const numEl=document.getElementById('mobTimerNum');
+  const pillEl=document.getElementById('mobTimerPill');
+  const pauseEl=document.getElementById('mobPauseBtn');
+  if(!arcEl)return;
+  const circ=125.66;
+  arcEl.style.strokeDashoffset=((1-pct)*circ).toFixed(2);
+  const color=TIMER.expired?'#ef4444':pct>.5?'#22c55e':pct>.25?'#fbbf24':'#ef4444';
+  arcEl.style.stroke=color;
+  numEl.textContent=label;
+  numEl.style.fill=pct<=.25&&!TIMER.expired?'#fbbf24':'white';
+  if(TIMER.expired){pillEl.className='mobile-timer-pill expired';pillEl.textContent='⏱ EXPIRED';}
+  else if(TIMER.paused){pillEl.className='mobile-timer-pill';pillEl.textContent='⏸ PAUSED';pillEl.style.color='var(--muted)';}
+  else if(pct<=.20){pillEl.className='mobile-timer-pill critical';pillEl.textContent='⚠ HURRY!';}
+  else if(pct<=.40){pillEl.className='mobile-timer-pill warning';pillEl.textContent='⏳ RUNNING';}
+  else{pillEl.className='mobile-timer-pill running';pillEl.textContent='● LIVE';}
+  if(pauseEl)pauseEl.textContent=TIMER.paused?'▶ Resume':'⏸ Pause';
+}
+
+/* ─── TICKER ─── */
+function buildTicker(){
+  const el=document.getElementById('tickerTrack');
+  if(!el)return;
+  const items=[...TICKER_ITEMS].sort(()=>Math.random()-.5);
+  const html=items.map(item=>item.type==='nfl'
+    ?`<span class="ticker-item nfl-item"><span class="ticker-dot">●</span>${item.text}<span class="ticker-source">[${item.src}]</span></span>`
+    :`<span class="ticker-item sw-item"><span style="font-size:12px;">${item.icon||'⚔️'}</span>${item.text}</span>`
+  ).join('');
+  el.innerHTML=html+html;
+}
+
+/* ─── TOAST ─── */
+let _tt;
+function showToast(msg){
+  const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');
+  clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),2600);
+}
+
+/* ─── RENDER — extend to call mobile ─── */
+const _origRender=render;
+// Patch render to also call mobile renderers
+function render(){
+  renderOnTheClock();renderRecs();renderRoundTabs();
+  renderBoard();renderPool();updateProgress();renderTimerTeam();
+  renderMobile();  // always sync mobile UI too
+}
+
+/* Patch updateTimerUI to also sync mobile timer display */
+const _origUpdateTimerUI=updateTimerUI;
+function updateTimerUI(){
+  // desktop timer
+  const r=TIMER.remaining,total=TIMER.totalSec;
+  const pct=r/total;
+  const m=Math.floor(r/60),s=(r%60).toString().padStart(2,'0');
+  const label=`${m}:${s}`;
+  const arc=document.getElementById('timerArc');
+  if(arc){
+    const circ=125.66;
+    arc.style.strokeDashoffset=((1-pct)*circ).toFixed(2);
+    const color=TIMER.expired?'#ef4444':pct>.5?'#22c55e':pct>.25?'#fbbf24':'#ef4444';
+    arc.style.stroke=color;
+  }
+  const numEl=document.getElementById('timerNumeral');
+  if(numEl)numEl.textContent=label;
+  const strip=document.getElementById('timerStrip');
+  const color2=TIMER.expired?'#ef4444':TIMER.remaining/TIMER.totalSec>.5?'#22c55e':TIMER.remaining/TIMER.totalSec>.25?'#fbbf24':'#ef4444';
+  if(strip){strip.style.width=(pct*100)+'%';strip.style.backgroundColor=color2;}
+  const pill=document.getElementById('timerStatusPill');
+  if(pill){
+    if(TIMER.expired){pill.className='timer-status-pill expired';pill.textContent='⏱ CLOCK EXPIRED';}
+    else if(TIMER.paused){pill.className='timer-status-pill paused';pill.textContent='⏸ PAUSED';}
+    else if(pct<=.20){pill.className='timer-status-pill critical';pill.textContent='⚠ HURRY UP!';}
+    else if(pct<=.40){pill.className='timer-status-pill warning';pill.textContent='⏳ TIME RUNNING';}
+    else{pill.className='timer-status-pill running';pill.textContent='● ON THE CLOCK';}
+  }
+  const pbtn=document.getElementById('timerPauseBtn');
+  if(pbtn)pbtn.textContent=TIMER.paused?'▶ Resume':'⏸ Pause';
+  // sync mobile
+  syncMobTimer();
+}
+
+/* ─── INIT ─── */
+function init(){
+  buildTicker();
+  loadFromHash();
+  if(!location.hash.startsWith('#d=')){
+    try{
+      const raw=localStorage.getItem('nfl26v3_auto');
+      if(raw){
+        const d=JSON.parse(raw);
+        // If version doesn't match, wipe stale data — this forces a fresh DRAFT_ORDER load
+        if(d._version!==SAVE_VERSION){
+          localStorage.removeItem('nfl26v3_auto');
+          console.log('Draft order updated — cleared stale localStorage cache.');
+        } else if(d.currentPick!==undefined){
+          restoreState(d);
+        }
+      }
+    }catch(e){localStorage.removeItem('nfl26v3_auto');}
+  }
+  // Always ensure order is the authoritative hardcoded list
+  // (restoreState sets it from DRAFT_ORDER, but if we skipped restoreState, set it here)
+  if(!STATE.order||STATE.order.length!==257){
+    STATE.order=[...DRAFT_ORDER];
+  }
+  _mobActiveRound=STATE.activeRound||1;
+  render();
+  const slot=getActiveSlot();
+  if(slot)startTimer(slot.round);
+}
+
+document.addEventListener('DOMContentLoaded',init);
+
+</script>
+
+<!-- Source attribution (hidden, for reference) -->
+<div style="display:none">
+  Draft Clock Rules: NFL Football Operations (operations.nfl.com) — Round 1: 8 min (2026 new rule per NFL/ESPN Schefter), Round 2: 7 min, Rounds 3-6: 5 min, Round 7: 4 min.
+  Clock expiry rule: "If a team lets its time expire without making a choice, it can make a selection later — but it runs the risk of letting the next team on the clock take the player it was considering." — NFL Football Operations.
+  Helmets: Original fan-art SVG illustrations in team colors only. Not reproductions of official NFL/Riddell helmet designs.
+  Pick-In Sound: 100% original synthesized audio via Web Audio API oscillators. No NFL broadcast music or copyrighted audio sampled.
+  Draft Order Round 1: Official NFL.com / NFL Football Operations (Apr 9, 2026).
+  Rankings: ESPN/Mel Kiper Big Board (advisory, Apr 2026).
+</div>
+</body>
+</html>
