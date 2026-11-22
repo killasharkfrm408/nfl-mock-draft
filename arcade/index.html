@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Observer Arcade</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#07090f; color:#e8e6df; font-family:Georgia,'Times New Roman',serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:48px 20px; }
+  .kicker { letter-spacing:.35em; font-size:12px; color:#c9a227; text-transform:uppercase; margin-bottom:14px; }
+  h1 { font-size:42px; font-weight:normal; text-align:center; margin-bottom:12px; }
+  .sub { color:#9a97a3; font-size:16px; text-align:center; max-width:520px; line-height:1.5; margin-bottom:44px; }
+  .cards { display:flex; gap:24px; flex-wrap:wrap; justify-content:center; max-width:860px; }
+  .card { background:#0e1119; border:1px solid #232838; border-radius:10px; padding:30px 28px; width:380px; max-width:92vw; }
+  .card h2 { font-size:26px; font-weight:normal; margin-bottom:8px; }
+  .card .tag { color:#c9a227; font-size:12px; letter-spacing:.25em; text-transform:uppercase; margin-bottom:14px; }
+  .card p { color:#b9b6ad; font-size:15px; line-height:1.55; margin-bottom:22px; }
+  .play { display:inline-block; background:#c9a227; color:#0a0c12; text-decoration:none; padding:12px 26px; border-radius:6px; font-size:15px; letter-spacing:.08em; }
+  .play:hover { background:#dbb53a; }
+  footer { margin-top:52px; color:#5d5b66; font-size:13px; text-align:center; }
+  footer a { color:#9a97a3; }
+</style>
+</head>
+<body>
+  <div class="kicker">Observer Series</div>
+  <h1>The Observer Arcade</h1>
+  <p class="sub">Two games from the Observer's own workbench. No downloads, no sign-ups — they run right in your browser.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="tag">Arcade Shooter</div>
+      <h2>SENTINEL</h2>
+      <p>A Defender-lineage rescue shooter with a long-range scanner, built for thumbs. Hostiles are inbound — the sector is yours to hold.</p>
+      <a class="play" href="sentinel.html">▶ Play SENTINEL</a>
+    </div>
+    <div class="card">
+      <div class="tag">Puzzle</div>
+      <h2>Phosphor</h2>
+      <p>Clear the grid. A slow-burn phosphor puzzle with scoring and a resume state — walk away mid-game and it remembers where you left it.</p>
+      <a class="play" href="phosphor.html">▶ Play Phosphor</a>
+    </div>
+  </div>
+  <footer>Games by Jimmy Garcia · Part of <a href="https://the-observer-series.jimmy-r-garcia.chatgpt.site/">The Observer Series</a></footer>
+</body>
+</html>
